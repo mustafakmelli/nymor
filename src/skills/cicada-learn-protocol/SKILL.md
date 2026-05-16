@@ -9,9 +9,12 @@ alwaysApply: true
 # Skill: Cicada Learn Protocol
 
 ## Rule
-When the user runs /cicada-learn, draft a new SKILL.md with frontmatter
-(name, description, globs, alwaysApply) and save it under .cicada/skills/<skill>/SKILL.md.
-Then re-run cicada compile.
+When the user runs /cicada-learn, run `cicada learn "<one-line rule>"`.
+It scaffolds `.cicada/skills/<slug>/SKILL.md` with frontmatter
+(name, description, globs, alwaysApply), a `## Rule` section from the prompt,
+and placeholder `## Why` / `## Example` sections. In an interactive terminal it
+prompts for frontmatter values; in non-interactive agent/CI contexts it uses the
+defaults. Fill in the placeholders, then re-run `cicada compile`.
 
 ## Why
 Skills should be captured at the moment a rule is discovered, not after the fact.

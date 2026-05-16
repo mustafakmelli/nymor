@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "@cicada/commit-conventions": {
+      "latest": "1.0.0",
+      "description": "Conventional Commits enforcement",
+      "tags": ["git", "conventions"]
+    }
+  }
+}

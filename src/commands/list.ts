@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import { getIndexJsonPath, getSkillsDir } from "../utils/paths";
 import { loadSkills, SkillIndexEntry } from "../utils/skills";
+import { readLockfile, readManifest } from "../utils/manifest";
 
 export async function listCommand(): Promise<void> {
   const projectRoot = process.cwd();
@@ -36,11 +37,45 @@ export async function listCommand(): Promise<void> {
   }
 
   const arrow = "\u2192";
-  const maxLength = Math.max(...entries.map((entry) => entry.id.length));
+  const manifest = await readManifest(projectRoot);
+  const lockfile = await readLockfile(projectRoot);
+  const rows = entries.map((entry) => ({
+    entry,
+    source: getSource(entry.id, manifest, lockfile?.skills ?? {})
+  }));
+  const skillWidth = Math.max("Skill".length, ...rows.map((row) => row.entry.id.length));
+  const sourceWidth = Math.max("Source".length, ...rows.map((row) => row.source.length));
 
-  entries.forEach((entry) => {
-    const slug = entry.id.padEnd(maxLength + 2, " ");
+  console.log(`  ${"Skill".padEnd(skillWidth)}  ${"Source".padEnd(sourceWidth)}  Description`);
+  console.log(`  ${"-".repeat(skillWidth)}  ${"-".repeat(sourceWidth)}  -----------`);
+
+  rows.forEach(({ entry, source }) => {
+    const slug = entry.id.padEnd(skillWidth, " ");
+    const sourceColumn = source.padEnd(sourceWidth, " ");
     const description = entry.description || entry.name || "(no description)";
-    console.log(`  ${slug}${arrow} ${description}`);
+    console.log(`  ${slug}  ${sourceColumn}  ${arrow} ${description}`);
   });
+}
+
+function getSource(
+  id: string,
+  manifest: Awaited<ReturnType<typeof readManifest>>,
+  lockSkills: NonNullable<Awaited<ReturnType<typeof readLockfile>>>["skills"]
+): string {
+  if (manifest.local.includes(id)) {
+    return "local";
+  }
+
+  for (const packageName of Object.keys(manifest.skills)) {
+    if (packageNameToFolderName(packageName) === id) {
+      const version = lockSkills[packageName]?.version ?? manifest.skills[packageName];
+      return `${packageName}@${version}`;
+    }
+  }
+
+  return "unknown";
+}
+
+function packageNameToFolderName(packageName: string): string {
+  return packageName.replace("/", "__");
 }

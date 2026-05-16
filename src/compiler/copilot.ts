@@ -14,7 +14,7 @@ export async function compileCopilotSkills(skills: SkillFile[], projectRoot: str
   }
 }
 
-function renderCopilotInstructions(skill: SkillFile): string {
+export function renderCopilotInstructions(skill: SkillFile): string {
   const globs = skill.frontmatter.globs ?? [];
   const applyTo = globs.length > 0 ? globs.join(", ") : "**/*";
   const lines = ["---", `applyTo: ${formatYamlValue(applyTo)}`, "---", ""];

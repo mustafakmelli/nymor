@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderKiroSteering > renders Kiro steering content for fixture skills 1`] = `
+{
+  "scoped": "---
+inclusion: manual
+---
+
+# Skill: Scoped Skill
+
+## Rule
+Use explicit return types on exported functions.
+
+## Why
+Exported APIs should be clear at the boundary.
+
+## Example
+export function run(): void {}
+
+",
+  "simple": "---
+inclusion: always
+---
+
+# Skill: Simple Skill
+
+## Rule
+Always keep the code readable.
+
+## Why
+Readable code is easier to review and maintain.
+
+## Example
+Prefer a named helper over a dense inline expression.
+
+",
+  "with-examples": "---
+inclusion: manual
+---
+
+# Skill: With Examples
+
+## Rule
+Keep examples near the skill.
+
+## Why
+Examples make a convention concrete.
+
+## Example
+See examples/example.md.
+
+",
+}
+`;

@@ -14,7 +14,7 @@ export async function compileCursorSkills(skills: SkillFile[], projectRoot: stri
   }
 }
 
-function renderCursorRule(skill: SkillFile): string {
+export function renderCursorRule(skill: SkillFile): string {
   const description = skill.frontmatter.description || skill.frontmatter.name;
   const globs = skill.frontmatter.globs ?? [];
   const alwaysApply = Boolean(skill.frontmatter.alwaysApply);

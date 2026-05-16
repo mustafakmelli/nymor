@@ -1,0 +1,11 @@
+{
+  "name": "@cicada/commit-conventions",
+  "description": "Conventional Commits enforcement",
+  "versions": {
+    "1.0.0": {
+      "integrity": "sha256-vpkad3R6A3/GUky5FwGRru73VepGx571ex6I8HyvQfo=",
+      "publishedAt": "2026-05-01T00:00:00Z"
+    }
+  },
+  "latest": "1.0.0"
+}

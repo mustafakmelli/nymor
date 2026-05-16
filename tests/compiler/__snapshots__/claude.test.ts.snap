@@ -1,0 +1,65 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compileClaudeSkills > copies every skill folder 1`] = `
+{
+  "scoped/SKILL.md": "---
+name: Scoped Skill
+description: Applies to TypeScript source files.
+globs:
+  - "src/**/*.ts"
+alwaysApply: false
+---
+
+# Skill: Scoped Skill
+
+## Rule
+Use explicit return types on exported functions.
+
+## Why
+Exported APIs should be clear at the boundary.
+
+## Example
+export function run(): void {}
+",
+  "simple/SKILL.md": "---
+name: Simple Skill
+description: Applies everywhere.
+alwaysApply: true
+---
+
+# Skill: Simple Skill
+
+## Rule
+Always keep the code readable.
+
+## Why
+Readable code is easier to review and maintain.
+
+## Example
+Prefer a named helper over a dense inline expression.
+",
+  "with-examples/SKILL.md": "---
+name: With Examples
+description: Includes extra example files.
+globs:
+  - "src/**/*.ts"
+alwaysApply: false
+---
+
+# Skill: With Examples
+
+## Rule
+Keep examples near the skill.
+
+## Why
+Examples make a convention concrete.
+
+## Example
+See examples/example.md.
+",
+  "with-examples/examples/example.md": "# Example
+
+Use a small fixture alongside the skill.
+",
+}
+`;

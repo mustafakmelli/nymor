@@ -14,7 +14,7 @@ export async function compileKiroSkills(skills: SkillFile[], projectRoot: string
   }
 }
 
-function renderKiroSteering(skill: SkillFile): string {
+export function renderKiroSteering(skill: SkillFile): string {
   const inclusion = skill.frontmatter.alwaysApply ? "always" : "manual";
   const lines = ["---", `inclusion: ${inclusion}`, "---", ""];
 

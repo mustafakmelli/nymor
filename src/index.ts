@@ -26,6 +26,7 @@ program
   .command("add")
   .argument("<skill>", "Skill package to install")
   .option("-v, --version <version>", "Version range to install")
+  .option("--offline", "Install from the local cache only")
   .description("Install a skill from the registry")
   .action((skill, options) => addCommand(skill, options));
 
@@ -38,8 +39,9 @@ program
 program
   .command("update")
   .argument("[skill]", "Skill package to update")
+  .option("--latest", "Update to the registry latest version, ignoring manifest ranges")
   .description("Update skills within version ranges")
-  .action((skill) => updateCommand(skill));
+  .action((skill, options) => updateCommand(skill, options));
 
 program
   .command("compile")

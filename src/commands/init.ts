@@ -2,20 +2,20 @@ import path from "path";
 import fs from "fs-extra";
 import inquirer from "inquirer";
 import { compileCommand } from "./compile";
-import { detectStack, Stack } from "../detector/stack";
+import { detectAgents } from "../detector/agents";
 import { createDefaultManifest } from "../templates/cicada-json";
-import { CicadaManifest, writeManifest } from "../utils/manifest";
+import { AgentTarget, CicadaManifest, readManifest, writeManifest } from "../utils/manifest";
 import { getCicadaDir, getManifestPath, getSkillsDir } from "../utils/paths";
 
 type InitMode = "new" | "add" | "reinit";
 
-const STACK_LABELS: Record<Stack, string> = {
-  nodejs: "Node.js API",
-  react: "React Frontend",
-  fullstack: "Full Stack",
-  python: "Python",
-  generic: "Generic"
-};
+const AGENT_CHOICES: Array<{ name: string; value: AgentTarget; short: string }> = [
+  { name: "Claude (.claude/skills + CLAUDE.md bootstrap)", value: "claude", short: "Claude" },
+  { name: "Cursor (.cursor/rules)", value: "cursor", short: "Cursor" },
+  { name: "GitHub Copilot (.github/instructions)", value: "copilot", short: "Copilot" },
+  { name: "Kiro (.kiro/steering)", value: "kiro", short: "Kiro" },
+  { name: "AGENTS.md", value: "agents-md", short: "AGENTS.md" }
+];
 
 export async function initCommand(): Promise<void> {
   const projectRoot = process.cwd();
@@ -49,17 +49,75 @@ export async function initCommand(): Promise<void> {
 
   const manifestPath = getManifestPath(projectRoot);
   if (mode !== "add" || !(await fs.pathExists(manifestPath))) {
-    await writeManifest(projectRoot, createDefaultManifest() as CicadaManifest);
+    const manifest = createDefaultManifest() as CicadaManifest;
+    manifest.agents = await selectAgentTargets(projectRoot);
+    await writeManifest(projectRoot, manifest);
   }
 
   await fs.ensureDir(skillsDir);
   const added = await copyStarterSkills(skillsDir, mode === "add");
-
-  const detected = await detectStack(projectRoot);
-  printDetectedStack(detected);
+  await recordStarterSkills(projectRoot, added);
 
   await compileCommand();
-  printSummary(added);
+  const manifest = await readManifest(projectRoot);
+  printSummary(added, manifest.agents);
+}
+
+async function selectAgentTargets(projectRoot: string): Promise<AgentTarget[]> {
+  const detectedAgents = await detectExistingAgentTargets(projectRoot);
+
+  if (!process.stdin.isTTY) {
+    return detectedAgents;
+  }
+
+  const { agents } = await inquirer.prompt<{ agents: AgentTarget[] }>([
+    {
+      type: "checkbox",
+      name: "agents",
+      message: "Which agent outputs should Cicada manage?",
+      choices: AGENT_CHOICES,
+      default: detectedAgents
+    }
+  ]);
+
+  return agents;
+}
+
+async function detectExistingAgentTargets(projectRoot: string): Promise<AgentTarget[]> {
+  const detected = await detectAgents(projectRoot);
+  const agents: AgentTarget[] = [];
+
+  if (detected.claude) {
+    agents.push("claude");
+  }
+  if (detected.cursor) {
+    agents.push("cursor");
+  }
+  if (detected.copilot) {
+    agents.push("copilot");
+  }
+  if (detected.kiro) {
+    agents.push("kiro");
+  }
+  if (detected.agentsMd) {
+    agents.push("agents-md");
+  }
+
+  return agents;
+}
+
+async function recordStarterSkills(projectRoot: string, added: string[]): Promise<void> {
+  if (added.length === 0) {
+    return;
+  }
+
+  const manifest = await readManifest(projectRoot);
+  for (const skill of added) {
+    if (!manifest.local.includes(skill)) {
+      manifest.local.push(skill);
+    }
+  }
+  await writeManifest(projectRoot, manifest);
 }
 
 async function copyStarterSkills(destDir: string, skipExisting: boolean): Promise<string[]> {
@@ -102,12 +160,7 @@ async function resolveAssetDir(candidates: string[]): Promise<string> {
   throw new Error("Unable to locate starter skills. Ensure skills assets are available.");
 }
 
-function printDetectedStack(stack: Stack): void {
-  const checkMark = "\u2713";
-  console.log(`${checkMark} Detected stack: ${STACK_LABELS[stack]}`);
-}
-
-function printSummary(added: string[]): void {
+function printSummary(added: string[], agents: AgentTarget[]): void {
   const checkMark = "\u2713";
   const arrow = "\u2192";
 
@@ -116,7 +169,7 @@ function printSummary(added: string[]): void {
   console.log("");
   console.log(`Skills added:      ${added.length} skills ${arrow} .cicada/skills/`);
   console.log("Index created:     .cicada/index.md");
-  console.log("Compiled outputs:  .claude/skills/, .cursor/rules/, .github/instructions/, .kiro/steering/");
+  console.log(`Compiled outputs:  ${formatAgentSummary(agents)}`);
 
   if (added.length > 0) {
     console.log("");
@@ -125,4 +178,13 @@ function printSummary(added: string[]): void {
       console.log(`  ${arrow} ${name}`);
     }
   }
+}
+
+function formatAgentSummary(agents: AgentTarget[]): string {
+  if (agents.length === 0) {
+    return "none selected";
+  }
+
+  const labels = new Map<AgentTarget, string>(AGENT_CHOICES.map((choice) => [choice.value, choice.short]));
+  return agents.map((agent) => labels.get(agent) ?? agent).join(", ");
 }

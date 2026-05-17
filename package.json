@@ -1,6 +1,6 @@
 {
   "name": "nymor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Teach your repo what your AI agents keep forgetting",
   "license": "MIT",
   "bin": {

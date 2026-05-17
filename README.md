@@ -234,8 +234,4 @@ Skills are not configuration. They are the accumulated knowledge of how your tea
 
 Every `/nymor-learn` is a conversation turned into institutional memory.
 
----
-
-<p align="center">
-  Made for teams who want their agents to actually know how they work.
-</p>
+Made for teams who want their agents to actually know how they work.

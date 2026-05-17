@@ -1,6 +1,6 @@
 {
   "name": "nymor",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Teach your repo what your AI agents keep forgetting",
   "bin": {
     "nymor": "./dist/index.js"

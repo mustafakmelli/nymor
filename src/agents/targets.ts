@@ -59,10 +59,15 @@ export const AGENT_TARGETS: AgentTargetDefinition[] = [
     id: "copilot",
     label: "GitHub Copilot",
     short: "Copilot",
-    description: "GitHub Copilot instructions",
-    detectPaths: [path.join(".github", "copilot-instructions.md"), path.join(".github", "instructions")],
+    description: "GitHub Copilot instructions and /nymor-learn prompt",
+    detectPaths: [
+      path.join(".github", "copilot-instructions.md"),
+      path.join(".github", "instructions"),
+      path.join(".github", "prompts")
+    ],
     kind: "copilot",
-    bootstrapFile: path.join(".github", "instructions", "nymor-bootstrap.instructions.md")
+    bootstrapFile: path.join(".github", "instructions", "nymor-bootstrap.instructions.md"),
+    commandFile: path.join(".github", "prompts", "nymor-learn.prompt.md")
   },
   {
     id: "kiro",

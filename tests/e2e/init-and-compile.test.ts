@@ -105,6 +105,7 @@ describe("nymor CLI", () => {
     await expect(fs.pathExists(path.join(projectRoot, ".claude", "skills", "demo", "SKILL.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".cursor", "rules", "nymor-demo.mdc"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".github", "instructions", "nymor-demo.instructions.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".github", "prompts", "nymor-learn.prompt.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".kiro", "steering", "nymor-demo.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".goose", "skills", "demo", "SKILL.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".opencode", "skill", "demo", "SKILL.md"))).resolves.toBe(true);
@@ -113,6 +114,9 @@ describe("nymor CLI", () => {
       "This looks like a reusable repo rule. Want me to capture it with /nymor-learn?"
     );
     await expect(fs.readFile(path.join(projectRoot, ".cursor", "commands", "nymor-learn.md"), "utf8")).resolves.toContain(
+      "Only create a skill after the user explicitly invokes /nymor-learn."
+    );
+    await expect(fs.readFile(path.join(projectRoot, ".github", "prompts", "nymor-learn.prompt.md"), "utf8")).resolves.toContain(
       "Only create a skill after the user explicitly invokes /nymor-learn."
     );
     await expect(fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")).resolves.toContain("<!-- nymor:start -->");

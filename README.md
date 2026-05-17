@@ -1,54 +1,122 @@
+```
+███╗   ██╗██╗   ██╗███╗   ███╗ ██████╗ ██████╗
+████╗  ██║╚██╗ ██╔╝████╗ ████║██╔═══██╗██╔══██╗
+██╔██╗ ██║ ╚████╔╝ ██╔████╔██║██║   ██║██████╔╝
+██║╚██╗██║  ╚██╔╝  ██║╚██╔╝██║██║   ██║██╔══██╗
+██║ ╚████║   ██║   ██║ ╚═╝ ██║╚██████╔╝██║  ██║
+╚═╝  ╚═══╝   ╚═╝   ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝
+```
+
 # Nymor
 
-Teach your repo what your agents keep forgetting.
+<p align="center">
+  <strong>Teach your repo what your agents keep forgetting.</strong>
+</p>
 
-Nymor is a local-first memory layer for AI coding agents. When you correct an agent with a rule that should last, Nymor turns that rule into a repo-owned skill and compiles it into the instruction surfaces your agents already read.
+<p align="center">
+  <a href="https://www.npmjs.com/package/nymor"><img src="https://img.shields.io/npm/v/nymor?color=black&label=npm" alt="npm version" /></a>
+  <a href="https://github.com/yourusername/nymor/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yourusername/nymor?color=black" alt="license" /></a>
+  <img src="https://img.shields.io/badge/zero-network_calls-black" alt="zero network" />
+  <img src="https://img.shields.io/badge/agents-10_supported-black" alt="agents" />
+</p>
 
-## Why
+---
 
-AI agents are good at the task in front of them and forgetful about the habits of your repo. You say "we do not use API routes here" once, then again tomorrow, then again in review. Nymor makes that correction durable.
+You correct your agent. It forgets.  
+You correct it again. It forgets again.  
+You write the rule in a comment. The next chat starts fresh.
 
-## Quick Start
+**Nymor stops that loop.**
+
+When a rule is worth keeping, `/nymor-learn` captures it as a skill — committed to your repo, compiled into every agent surface, loaded in every future chat. The agent stops forgetting because the memory lives in the code.
+
+---
+
+## How it feels
+
+```
+You:    "We don't use API routes here. Always use Server Actions."
+Agent:  "Got it. This looks like a durable repo rule —
+         want me to capture it with /nymor-learn?"
+You:    /nymor-learn "Use Server Actions for mutations, not API routes"
+Agent:  Writing .nymor/skills/server-actions-only/SKILL.md ...
+        Updating nymor.json ...
+        Running nymor compile ...
+        ✓ Skill saved and compiled to Claude, Cursor, Copilot, Kiro
+```
+
+Next chat. Same rule. Already known.
+
+---
+
+## Install
 
 ```sh
-npm install
-npm run build
-node dist/index.js init
+npm install -g nymor
 ```
 
-Then in your agent:
+Or run without installing:
 
-```text
+```sh
+npx nymor init
+```
+
+---
+
+## Quick start
+
+```sh
+# Initialize repo memory and agent guidance
+nymor init
+
+# Then inside your agent (Cursor, Claude, Copilot, Kiro):
 /nymor-learn "Use Server Actions for mutations, not API routes"
+
+# See what your repo has learned
+nymor list
+
+# Recompile after manual edits
+nymor compile
 ```
 
-The agent writes a complete skill into `.nymor/skills/`, updates `nymor.json`, runs `nymor compile`, and validates the result.
+---
 
-## How It Works
+## The only workflow that matters
 
-1. You correct an agent or name a repo convention.
-2. The agent gently suggests `/nymor-learn` when the rule looks reusable.
-3. The agent writes `.nymor/skills/<id>/SKILL.md`.
-4. Nymor compiles the skill to your selected agent surfaces.
-5. You commit the memory with the rest of the repo.
+```
+Correct agent  ──→  /nymor-learn  ──→  .nymor/skills/<id>/SKILL.md
+                                              │
+                          ┌───────────────────┼───────────────────┐
+                          ↓                   ↓                   ↓
+                    .claude/skills/     .cursor/rules/    .github/instructions/
+                    CLAUDE.md           nymor.mdc         nymor-bootstrap.md
+                          ↓                   ↓                   ↓
+                    git commit ──────── git diff ──────── open PR
+```
 
-## Supported Agents
+The agent writes the skill. Nymor compiles it. Git owns the history. Your team reviews it like any other change.
 
-Nymor supports the common coding-agent surfaces teams use today:
+---
 
-- Claude Code
-- Cursor
-- GitHub Copilot
-- Kiro
-- AGENTS.md consumers, including Codex, OpenCode, Aider, Goose, Zed, Warp, Devin, and Junie
-- Gemini CLI
-- Windsurf
-- Goose native skills
-- OpenCode native skills
+## Supported agents
 
-## Skill Format
+| Agent                                                  | Output                                         |
+| ------------------------------------------------------ | ---------------------------------------------- |
+| Claude Code                                            | `.claude/skills/`, `CLAUDE.md`                 |
+| Cursor                                                 | `.cursor/rules/nymor-*.mdc`                    |
+| GitHub Copilot                                         | `.github/instructions/nymor-*.instructions.md`, `.github/prompts/nymor-learn.prompt.md` |
+| Kiro                                                   | `.kiro/steering/nymor-*.md`                    |
+| Codex, OpenCode, Aider, Goose, Zed, Warp, Devin, Junie | `AGENTS.md`                                    |
+| Gemini CLI                                             | `GEMINI.md`                                    |
+| Windsurf                                               | `.windsurf/rules/nymor.md`                     |
+| Goose (native)                                         | `.goose/skills/`                               |
+| OpenCode (native)                                      | `.opencode/skill/`                             |
 
-Skills are Markdown files stored in `.nymor/skills/<skill-id>/SKILL.md`.
+---
+
+## Skill format
+
+Skills are plain Markdown. Human-readable, diffable, reviewable in a PR.
 
 ```md
 ---
@@ -63,55 +131,91 @@ alwaysApply: false
 # Skill: Server Actions Only
 
 ## Rule
+
 Use Server Actions for mutations. Do not create API routes for app mutations.
 
 ## Why
-This keeps mutation logic close to the UI and preserves the repo's auth pattern.
+
+Keeps mutation logic close to the UI and preserves the repo's auth pattern.
 
 ## Example
-Prefer an exported action with `'use server'` over a new route handler.
+
+// WRONG
+export async function POST(req: Request) { ... } // app/api/users/route.ts
+
+// CORRECT
+'use server'
+export async function updateUser(data: UserData) { ... } // app/users/actions.ts
 ```
+
+---
 
 ## Commands
 
 ```sh
-nymor init      # initialize repo memory and agent guidance
-nymor compile   # regenerate indexes and agent outputs
+nymor init      # initialize repo memory, write /nymor-learn to all agents
+nymor compile   # regenerate indexes and all agent outputs
 nymor list      # list active repo skills
-nymor doctor    # check manifest, skill globs, and generated outputs
+nymor doctor    # check manifest, globs, and generated outputs
 nymor validate  # validate skill file structure
 ```
 
-## Generated Files
+---
 
-Nymor keeps source memory in:
+## What Nymor does not do
 
-```text
-.nymor/skills/
-.nymor/index.md
-.nymor/index.json
-nymor.json
+- **No central catalog.** Skills are yours. They live in your repo. There is nothing to install from the internet.
+- **No LLM calls.** Nymor compiles and validates. The agent writes the skill. You review it.
+- **No magic.** Every output is a plain file you can read, edit, delete, and commit.
+
+---
+
+## `nymor.json`
+
+```json
+{
+  "version": "1",
+  "agents": ["claude", "cursor", "copilot", "kiro", "agents-md"],
+  "local": ["server-actions-only", "commit-conventions"]
+}
 ```
 
-Depending on selected agents, Nymor also writes files such as:
+---
 
-```text
-CLAUDE.md
-.claude/commands/nymor-learn.md
-.claude/skills/<skill-id>/SKILL.md
-.cursor/rules/nymor.mdc
-.cursor/rules/nymor-<skill-id>.mdc
-.cursor/commands/nymor-learn.md
+## Generated files
+
+```
+.nymor/
+  skills/
+    server-actions-only/
+      SKILL.md
+  index.md
+  index.json
+nymor.json
+
+CLAUDE.md                                          ← Claude bootstrap
+.claude/commands/nymor-learn.md                    ← Claude slash command
+.claude/skills/<id>/SKILL.md                       ← Claude native skills
+
+.cursor/rules/nymor.mdc                            ← Cursor bootstrap
+.cursor/rules/nymor-<id>.mdc                       ← Cursor per-skill
+.cursor/commands/nymor-learn.md                    ← Cursor slash command
+
 .github/instructions/nymor-bootstrap.instructions.md
-.github/instructions/nymor-<skill-id>.instructions.md
+.github/instructions/nymor-<id>.instructions.md
+.github/prompts/nymor-learn.prompt.md                   ← Copilot slash command
+
 .kiro/steering/nymor.md
-.kiro/steering/nymor-<skill-id>.md
-AGENTS.md
+.kiro/steering/nymor-<id>.md
+
+AGENTS.md                                          ← Codex, Aider, Goose, etc.
 GEMINI.md
 .windsurf/rules/nymor.md
-.goose/skills/<skill-id>/SKILL.md
-.opencode/skill/<skill-id>/SKILL.md
+.goose/skills/<id>/SKILL.md
+.opencode/skill/<id>/SKILL.md
 ```
+
+---
 
 ## Development
 
@@ -119,3 +223,19 @@ GEMINI.md
 npm run build
 npm test
 ```
+
+---
+
+## Philosophy
+
+> The agent is smart. Your repo is the memory.
+
+Skills are not configuration. They are the accumulated knowledge of how your team works — decisions made, mistakes corrected, patterns established. Nymor makes that knowledge durable, reviewable, and portable across every agent your team uses.
+
+Every `/nymor-learn` is a conversation turned into institutional memory.
+
+---
+
+<p align="center">
+  Made for teams who want their agents to actually know how they work.
+</p>

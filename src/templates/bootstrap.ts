@@ -3,6 +3,10 @@ import { SkillFile } from "../utils/skills";
 
 const LEARN_TRIGGER = "/nymor-learn";
 
+function getLearnArgumentsPlaceholder(target: AgentTargetDefinition): string {
+  return target.id === "copilot" ? "{{input}}" : "$ARGUMENTS";
+}
+
 export function renderBootstrap(target: AgentTargetDefinition, skills: SkillFile[] = [], wrap = true): string {
   const body = [
     "# Nymor",
@@ -40,6 +44,8 @@ export function renderBootstrap(target: AgentTargetDefinition, skills: SkillFile
 }
 
 export function renderLearnCommand(target: AgentTargetDefinition): string {
+  const inputPlaceholder = getLearnArgumentsPlaceholder(target);
+
   return [
     "---",
     "description: Capture a durable repo rule as a Nymor skill.",
@@ -50,7 +56,7 @@ export function renderLearnCommand(target: AgentTargetDefinition): string {
     "User input:",
     "",
     "```text",
-    "$ARGUMENTS",
+    inputPlaceholder,
     "```",
     "",
     renderBootstrap(target, [], false)

@@ -2,6 +2,7 @@
   "name": "nymor",
   "version": "1.0.0",
   "description": "Teach your repo what your AI agents keep forgetting",
+  "license": "MIT",
   "bin": {
     "nymor": "./dist/index.js"
   },

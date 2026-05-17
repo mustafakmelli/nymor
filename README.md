@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/nymor"><img src="https://img.shields.io/npm/v/nymor?color=black&label=npm" alt="npm version" /></a>
-  <a href="https://github.com/yourusername/nymor/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yourusername/nymor?color=black" alt="license" /></a>
+  <a href="https://github.com/mustafakmelli/nymor/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mustafakmelli/nymor?color=black" alt="license" /></a>
   <img src="https://img.shields.io/badge/zero-network_calls-black" alt="zero network" />
   <img src="https://img.shields.io/badge/agents-10_supported-black" alt="agents" />
 </p>

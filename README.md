@@ -52,13 +52,13 @@ Next chat. Same rule. Already known.
 ## Install
 
 ```sh
-npm install -g nymor
+npm install -g @mustafakmelli/nymor
 ```
 
 Or run without installing:
 
 ```sh
-npx nymor init
+npx @mustafakmelli/nymor init
 ```
 
 ---

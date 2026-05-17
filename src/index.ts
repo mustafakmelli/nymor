@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { initCommand } from "./commands/init";
-import { addCommand } from "./commands/add";
-import { removeCommand } from "./commands/remove";
-import { updateCommand } from "./commands/update";
 import { compileCommand } from "./commands/compile";
 import { learnCommand } from "./commands/learn";
 import { listCommand } from "./commands/list";
@@ -13,35 +10,14 @@ import { validateCommand } from "./commands/validate";
 const program = new Command();
 
 program
-  .name("cicada")
-  .description("Local-first package manager for AI agent skills")
+  .name("nymor")
+  .description("Teach your repo what your AI agents keep forgetting")
   .version("2.0.0");
 
 program
   .command("init")
-  .description("Initialize Cicada in the current repo")
+  .description("Initialize Nymor in the current repo")
   .action(() => initCommand());
-
-program
-  .command("add")
-  .argument("<skill>", "Skill package to install")
-  .option("-v, --version <version>", "Version range to install")
-  .option("--offline", "Install from the local cache only")
-  .description("Install a skill from the registry")
-  .action((skill, options) => addCommand(skill, options));
-
-program
-  .command("remove")
-  .argument("<skill>", "Skill package to remove")
-  .description("Remove an installed skill")
-  .action((skill) => removeCommand(skill));
-
-program
-  .command("update")
-  .argument("[skill]", "Skill package to update")
-  .option("--latest", "Update to the registry latest version, ignoring manifest ranges")
-  .description("Update skills within version ranges")
-  .action((skill, options) => updateCommand(skill, options));
 
 program
   .command("compile")
@@ -49,14 +25,21 @@ program
   .action(() => compileCommand());
 
 program
-  .command("learn")
+  .command("learn", { hidden: true })
   .argument("<rule>", "One-line rule or convention to capture")
-  .description("Scaffold a new local skill")
-  .action((rule) => learnCommand(rule));
+  .option("--id <id>", "Local skill folder id")
+  .option("--name <name>", "Skill name")
+  .option("--description <description>", "Skill description")
+  .option("--globs <globs>", "Comma-separated file globs")
+  .option("--always-apply", "Apply the skill regardless of globs")
+  .option("--why <why>", "Why this rule matters")
+  .option("--example <example>", "Example or counter-example")
+  .description("Internal fallback for capturing a project rule as a local skill")
+  .action((rule, options) => learnCommand(rule, options));
 
 program
   .command("list")
-  .description("List installed skills")
+  .description("List active repo skills")
   .action(() => listCommand());
 
 program

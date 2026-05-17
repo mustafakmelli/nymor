@@ -8,14 +8,14 @@ describe("upsertManagedBlock", () => {
   });
 
   it("preserves user content outside the managed block", () => {
-    const existing = ["user header", "", "<!-- cicada:start -->", "old", "<!-- cicada:end -->", "", "user footer", ""].join("\n");
+    const existing = ["user header", "", "<!-- nymor:start -->", "old", "<!-- nymor:end -->", "", "user footer", ""].join("\n");
 
     expect(upsertManagedBlock(existing, "new")).toMatchInlineSnapshot(`
       "user header
 
-      <!-- cicada:start -->
+      <!-- nymor:start -->
       new
-      <!-- cicada:end -->
+      <!-- nymor:end -->
 
       user footer
       "

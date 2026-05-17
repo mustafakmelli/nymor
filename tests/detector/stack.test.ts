@@ -22,7 +22,7 @@ describe("detectStack", () => {
   });
 
   it("returns null when no stack signals are present", async () => {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cicada-stack-"));
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-stack-"));
 
     await expect(detectStack(projectRoot)).resolves.toBeNull();
   });

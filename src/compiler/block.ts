@@ -1,5 +1,5 @@
-const BLOCK_START = "<!-- cicada:start -->";
-const BLOCK_END = "<!-- cicada:end -->";
+const BLOCK_START = "<!-- nymor:start -->";
+const BLOCK_END = "<!-- nymor:end -->";
 
 export function renderManagedBlock(content: string): string {
   const body = content.trimEnd();

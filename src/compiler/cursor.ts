@@ -7,7 +7,7 @@ export async function compileCursorSkills(skills: SkillFile[], projectRoot: stri
   await fs.ensureDir(outputRoot);
 
   for (const skill of skills) {
-    const fileName = `cicada-${skill.id}.mdc`;
+    const fileName = `nymor-${skill.id}.mdc`;
     const outputPath = path.join(outputRoot, fileName);
     const content = renderCursorRule(skill);
     await fs.writeFile(outputPath, content, "utf8");

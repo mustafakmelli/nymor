@@ -7,7 +7,7 @@ export async function compileCopilotSkills(skills: SkillFile[], projectRoot: str
   await fs.ensureDir(outputRoot);
 
   for (const skill of skills) {
-    const fileName = `cicada-${skill.id}.instructions.md`;
+    const fileName = `nymor-${skill.id}.instructions.md`;
     const outputPath = path.join(outputRoot, fileName);
     const content = renderCopilotInstructions(skill);
     await fs.writeFile(outputPath, content, "utf8");

@@ -9,7 +9,7 @@ const fixturesDir = path.resolve(__dirname, "..", "fixtures", "skills");
 
 describe("compileClaudeSkills", () => {
   it("copies every skill folder", async () => {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cicada-claude-"));
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-claude-"));
     const skills = await loadSkills(fixturesDir);
 
     await compileClaudeSkills(skills, projectRoot);

@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs-extra";
 import inquirer from "inquirer";
+import type { DistinctQuestion } from "inquirer";
 import yaml from "yaml";
 import pc from "picocolors";
 import { compileCommand } from "./compile";
@@ -12,11 +13,23 @@ interface LearnAnswers {
   description: string;
   globs: string;
   alwaysApply: boolean;
+  why: string;
+  example: string;
 }
 
-export async function learnCommand(rule: string): Promise<void> {
+export interface LearnOptions {
+  id?: string;
+  name?: string;
+  description?: string;
+  globs?: string;
+  alwaysApply?: boolean;
+  why?: string;
+  example?: string;
+}
+
+export async function learnCommand(rule: string, options: LearnOptions = {}): Promise<void> {
   const projectRoot = process.cwd();
-  const slug = slugifyRule(rule);
+  const slug = slugifyRule(options.id ?? rule);
   const skillDir = path.join(getSkillsDir(projectRoot), slug);
   const skillPath = path.join(skillDir, "SKILL.md");
 
@@ -24,7 +37,7 @@ export async function learnCommand(rule: string): Promise<void> {
     throw new Error(`A local skill already exists at ${skillPath}`);
   }
 
-  const answers = await promptForSkill(rule, slug);
+  const answers = await promptForSkill(rule, slug, options);
 
   const frontmatter = yaml.stringify({
     name: answers.name,
@@ -43,10 +56,10 @@ export async function learnCommand(rule: string): Promise<void> {
     rule,
     "",
     "## Why",
-    "TBD - describe why",
+    answers.why,
     "",
     "## Example",
-    "TBD - add an example",
+    answers.example,
     ""
   ].join("\n");
 
@@ -92,42 +105,71 @@ function titleCase(value: string): string {
     .join(" ");
 }
 
-async function promptForSkill(rule: string, slug: string): Promise<LearnAnswers> {
+async function promptForSkill(rule: string, slug: string, options: LearnOptions): Promise<LearnAnswers> {
   const defaults: LearnAnswers = {
-    name: titleCase(slug),
-    description: rule,
-    globs: "**/*",
-    alwaysApply: false
+    name: options.name ?? titleCase(slug),
+    description: options.description ?? rule,
+    globs: options.globs ?? "**/*",
+    alwaysApply: options.alwaysApply ?? false,
+    why: options.why ?? "TBD - describe why",
+    example: options.example ?? "TBD - add an example"
   };
 
   if (!process.stdin.isTTY) {
     return defaults;
   }
 
-  return inquirer.prompt<LearnAnswers>([
-    {
+  const questions: Array<DistinctQuestion<Partial<LearnAnswers>>> = [];
+
+  if (options.name === undefined) {
+    questions.push({
       type: "input",
       name: "name",
       message: "Skill name",
       default: defaults.name
-    },
-    {
+    });
+  }
+  if (options.description === undefined) {
+    questions.push({
       type: "input",
       name: "description",
       message: "Description",
       default: defaults.description
-    },
-    {
+    });
+  }
+  if (options.globs === undefined) {
+    questions.push({
       type: "input",
       name: "globs",
       message: "Globs",
       default: defaults.globs
-    },
-    {
+    });
+  }
+  if (options.alwaysApply === undefined) {
+    questions.push({
       type: "confirm",
       name: "alwaysApply",
       message: "Always apply?",
       default: defaults.alwaysApply
-    }
-  ]);
+    });
+  }
+  if (options.why === undefined) {
+    questions.push({
+      type: "input",
+      name: "why",
+      message: "Why",
+      default: defaults.why
+    });
+  }
+  if (options.example === undefined) {
+    questions.push({
+      type: "input",
+      name: "example",
+      message: "Example",
+      default: defaults.example
+    });
+  }
+
+  const answers = questions.length > 0 ? await inquirer.prompt<Partial<LearnAnswers>>(questions) : {};
+  return { ...defaults, ...answers };
 }

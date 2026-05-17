@@ -2,12 +2,13 @@ import path from "path";
 import fs from "fs-extra";
 import { glob } from "glob";
 import yaml from "yaml";
+import { AGENT_TARGETS, AgentTarget } from "../agents/targets";
 import { planCompileOutputs } from "./compile";
-import { AgentTarget, CicadaManifest, readLockfile } from "../utils/manifest";
+import { NymorManifest } from "../utils/manifest";
 import { getManifestPath, getSkillsDir } from "../utils/paths";
 import { listSkillDirectories } from "../utils/skills";
 
-const VALID_AGENTS: AgentTarget[] = ["claude", "cursor", "copilot", "kiro", "agents-md"];
+const VALID_AGENTS: AgentTarget[] = AGENT_TARGETS.map((target) => target.id);
 
 interface CheckResult {
   ok: boolean;
@@ -30,8 +31,7 @@ export async function doctorCommand(): Promise<void> {
   const projectRoot = process.cwd();
   const results: CheckResult[] = [];
 
-  const manifest = await checkManifest(projectRoot, results);
-  await checkLockfile(projectRoot, manifest, results);
+  await checkManifest(projectRoot, results);
   const frontmatters = await checkSkillFrontmatter(projectRoot, results);
   await checkGlobExistence(projectRoot, frontmatters, results);
   checkDuplicateNames(projectRoot, frontmatters, results);
@@ -47,11 +47,11 @@ export async function doctorCommand(): Promise<void> {
   }
 }
 
-async function checkManifest(projectRoot: string, results: CheckResult[]): Promise<CicadaManifest | null> {
+async function checkManifest(projectRoot: string, results: CheckResult[]): Promise<NymorManifest | null> {
   const manifestPath = getManifestPath(projectRoot);
 
   try {
-    const manifest = (await fs.readJson(manifestPath)) as CicadaManifest;
+    const manifest = (await fs.readJson(manifestPath)) as NymorManifest;
     const errors: string[] = [];
 
     if (manifest.version !== "1") {
@@ -79,58 +79,6 @@ async function checkManifest(projectRoot: string, results: CheckResult[]): Promi
       message: err instanceof Error ? err.message : String(err)
     });
     return null;
-  }
-}
-
-async function checkLockfile(
-  projectRoot: string,
-  manifest: CicadaManifest | null,
-  results: CheckResult[]
-): Promise<void> {
-  const lockPath = path.join(projectRoot, "cicada.lock");
-  let lockfile: Awaited<ReturnType<typeof readLockfile>>;
-
-  try {
-    lockfile = await readLockfile(projectRoot);
-  } catch (err) {
-    results.push({
-      ok: false,
-      label: "Lockfile sync",
-      filePath: lockPath,
-      message: err instanceof Error ? err.message : String(err)
-    });
-    return;
-  }
-
-  if (!manifest) {
-    results.push({
-      ok: false,
-      label: "Lockfile sync",
-      filePath: lockPath,
-      message: "manifest could not be read"
-    });
-    return;
-  }
-
-  const missing = Object.keys(manifest.skills).filter((skill) => !lockfile?.skills[skill]);
-  results.push({
-    ok: missing.length === 0,
-    label: "Lockfile sync",
-    filePath: lockPath,
-    message: missing.length > 0 ? `missing entries: ${missing.join(", ")}` : ""
-  });
-
-  if (lockfile) {
-    const extra = Object.keys(lockfile.skills).filter((skill) => !manifest.skills[skill]);
-    if (extra.length > 0) {
-      results.push({
-        ok: true,
-        warn: true,
-        label: "Lockfile sync",
-        filePath: lockPath,
-        message: `unused entries: ${extra.join(", ")}`
-      });
-    }
   }
 }
 
@@ -198,7 +146,7 @@ async function checkGlobExistence(
         cwd: projectRoot,
         nodir: true,
         dot: true,
-        ignore: ["**/node_modules/**", "**/.git/**"]
+        ignore: ["**/node_modules/**", "**/.git/**", "**/.nymor/**"]
       });
       if (matches.length === 0) {
         missing.push(pattern);
@@ -266,7 +214,7 @@ async function checkCompiledOutput(projectRoot: string, results: CheckResult[]):
       ok: stale.length === 0,
       label: "Compiled output staleness",
       filePath: projectRoot,
-      message: stale.length > 0 ? "run `cicada compile`" : ""
+      message: stale.length > 0 ? "run `nymor compile`" : ""
     });
   } catch (err) {
     results.push({
@@ -292,11 +240,10 @@ function parseFrontmatter(content: string): Record<string, unknown> {
   return (yaml.parse(lines.slice(1, endIndex + 1).join("\n")) ?? {}) as Record<string, unknown>;
 }
 
-function normalizeManifest(manifest: CicadaManifest): CicadaManifest {
+function normalizeManifest(manifest: NymorManifest): NymorManifest {
   return {
     version: manifest.version,
     agents: manifest.agents ?? [],
-    skills: manifest.skills ?? {},
     local: manifest.local ?? []
   };
 }

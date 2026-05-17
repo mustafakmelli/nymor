@@ -4,26 +4,22 @@ export function getRepoRoot(cwd: string = process.cwd()): string {
   return cwd;
 }
 
-export function getCicadaDir(root: string): string {
-  return path.join(root, ".cicada");
+export function getNymorDir(root: string): string {
+  return path.join(root, ".nymor");
 }
 
 export function getSkillsDir(root: string): string {
-  return path.join(getCicadaDir(root), "skills");
+  return path.join(getNymorDir(root), "skills");
 }
 
 export function getIndexMarkdownPath(root: string): string {
-  return path.join(getCicadaDir(root), "index.md");
+  return path.join(getNymorDir(root), "index.md");
 }
 
 export function getIndexJsonPath(root: string): string {
-  return path.join(getCicadaDir(root), "index.json");
+  return path.join(getNymorDir(root), "index.json");
 }
 
 export function getManifestPath(root: string): string {
-  return path.join(root, "cicada.json");
-}
-
-export function getLockPath(root: string): string {
-  return path.join(root, "cicada.lock");
+  return path.join(root, "nymor.json");
 }

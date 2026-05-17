@@ -7,7 +7,7 @@ export async function compileKiroSkills(skills: SkillFile[], projectRoot: string
   await fs.ensureDir(outputRoot);
 
   for (const skill of skills) {
-    const fileName = `cicada-${skill.id}.md`;
+    const fileName = `nymor-${skill.id}.md`;
     const outputPath = path.join(outputRoot, fileName);
     const content = renderKiroSteering(skill);
     await fs.writeFile(outputPath, content, "utf8");

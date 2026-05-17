@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import { getIndexJsonPath, getSkillsDir } from "../utils/paths";
 import { loadSkills, SkillIndexEntry } from "../utils/skills";
-import { readLockfile, readManifest } from "../utils/manifest";
+import { readManifest } from "../utils/manifest";
 
 export async function listCommand(): Promise<void> {
   const projectRoot = process.cwd();
@@ -9,7 +9,7 @@ export async function listCommand(): Promise<void> {
   const indexJsonPath = getIndexJsonPath(projectRoot);
 
   if (!(await fs.pathExists(skillsDir))) {
-    console.log("No skills found. Run cicada init first.");
+    console.log("No skills found. Run nymor init first.");
     return;
   }
 
@@ -29,7 +29,7 @@ export async function listCommand(): Promise<void> {
     }));
   }
 
-  console.log(`Cicada Skills (${entries.length})`);
+  console.log(`Nymor Skills (${entries.length})`);
   console.log("");
 
   if (entries.length === 0) {
@@ -38,10 +38,9 @@ export async function listCommand(): Promise<void> {
 
   const arrow = "\u2192";
   const manifest = await readManifest(projectRoot);
-  const lockfile = await readLockfile(projectRoot);
   const rows = entries.map((entry) => ({
     entry,
-    source: getSource(entry.id, manifest, lockfile?.skills ?? {})
+    source: manifest.local.includes(entry.id) ? "local" : "unknown"
   }));
   const skillWidth = Math.max("Skill".length, ...rows.map((row) => row.entry.id.length));
   const sourceWidth = Math.max("Source".length, ...rows.map((row) => row.source.length));
@@ -55,27 +54,4 @@ export async function listCommand(): Promise<void> {
     const description = entry.description || entry.name || "(no description)";
     console.log(`  ${slug}  ${sourceColumn}  ${arrow} ${description}`);
   });
-}
-
-function getSource(
-  id: string,
-  manifest: Awaited<ReturnType<typeof readManifest>>,
-  lockSkills: NonNullable<Awaited<ReturnType<typeof readLockfile>>>["skills"]
-): string {
-  if (manifest.local.includes(id)) {
-    return "local";
-  }
-
-  for (const packageName of Object.keys(manifest.skills)) {
-    if (packageNameToFolderName(packageName) === id) {
-      const version = lockSkills[packageName]?.version ?? manifest.skills[packageName];
-      return `${packageName}@${version}`;
-    }
-  }
-
-  return "unknown";
-}
-
-function packageNameToFolderName(packageName: string): string {
-  return packageName.replace("/", "__");
 }

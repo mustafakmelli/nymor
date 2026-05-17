@@ -9,7 +9,7 @@ export async function validateCommand(): Promise<void> {
   const indexJsonPath = getIndexJsonPath(projectRoot);
 
   if (!(await fs.pathExists(skillsDir))) {
-    console.log("No skills found. Run cicada init first.");
+    console.log("No skills found. Run nymor init first.");
     process.exitCode = 1;
     return;
   }
@@ -72,11 +72,11 @@ export async function validateCommand(): Promise<void> {
 
   if (!indexExists) {
     errorCount += 1;
-    console.log("\nIndex not found. Run cicada compile to regenerate index.json.");
+    console.log("\nIndex not found. Run nymor compile to regenerate index.json.");
   }
 
   if (errorCount > 0) {
-    console.log(`\n${errorCount} issues found. Fix them or run cicada compile again.`);
+    console.log(`\n${errorCount} issues found. Fix them or run nymor compile again.`);
     process.exitCode = 1;
   } else {
     console.log("\nAll skills look good.");

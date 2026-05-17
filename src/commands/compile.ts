@@ -1,33 +1,14 @@
 import fs from "fs-extra";
 import path from "path";
-import { compileClaudeSkills } from "../compiler/claude";
-import { compileCopilotSkills } from "../compiler/copilot";
+import { AGENT_TARGETS, AgentTargetDefinition } from "../agents/targets";
 import { renderCopilotInstructions } from "../compiler/copilot";
-import { compileCursorSkills } from "../compiler/cursor";
 import { renderCursorRule } from "../compiler/cursor";
-import { compileKiroSkills } from "../compiler/kiro";
 import { renderKiroSteering } from "../compiler/kiro";
-import { renderAgentsMarkdown } from "../compiler/agentsmd";
 import { upsertManagedBlock } from "../compiler/block";
+import { renderBootstrap, renderLearnCommand, renderLearnSkill } from "../templates/bootstrap";
 import { buildSkillIndex, loadSkills, SkillFile } from "../utils/skills";
 import { readManifest } from "../utils/manifest";
-import {
-  getCicadaDir,
-  getIndexJsonPath,
-  getIndexMarkdownPath,
-  getSkillsDir
-} from "../utils/paths";
-
-const BOOTSTRAP_TARGETS = [
-  { agent: "claude", template: "claude.md", file: "CLAUDE.md" },
-  { agent: "cursor", template: "cursor.md", file: path.join(".cursor", "rules", "cicada.mdc") },
-  {
-    agent: "copilot",
-    template: "copilot.md",
-    file: path.join(".github", "instructions", "cicada-bootstrap.instructions.md")
-  },
-  { agent: "kiro", template: "kiro.md", file: path.join(".kiro", "steering", "cicada.md") }
-];
+import { getIndexJsonPath, getIndexMarkdownPath, getNymorDir, getSkillsDir } from "../utils/paths";
 
 export interface PlannedCompileFile {
   path: string;
@@ -39,7 +20,7 @@ export async function compileCommand(): Promise<void> {
   const skillsDir = getSkillsDir(projectRoot);
 
   if (!(await fs.pathExists(skillsDir))) {
-    console.log("No skills found. Run cicada init first.");
+    console.log("No skills found. Run nymor init first.");
     process.exitCode = 1;
     return;
   }
@@ -47,40 +28,20 @@ export async function compileCommand(): Promise<void> {
   const skills = await loadSkills(skillsDir);
   const { markdown, json } = buildSkillIndex(skills);
 
-  await fs.ensureDir(getCicadaDir(projectRoot));
+  await fs.ensureDir(getNymorDir(projectRoot));
   await fs.writeFile(getIndexMarkdownPath(projectRoot), markdown, "utf8");
   await fs.writeFile(getIndexJsonPath(projectRoot), json, "utf8");
 
   const manifest = await readManifest(projectRoot);
   const agentSet = new Set(manifest.agents);
 
-  if (agentSet.has("claude")) {
-    await compileClaudeSkills(skills, projectRoot);
+  for (const target of AGENT_TARGETS) {
+    if (agentSet.has(target.id)) {
+      await writeTargetOutputs(projectRoot, target, skills);
+    }
   }
-  if (agentSet.has("cursor")) {
-    await compileCursorSkills(skills, projectRoot);
-  }
-  if (agentSet.has("copilot")) {
-    await compileCopilotSkills(skills, projectRoot);
-  }
-  if (agentSet.has("kiro")) {
-    await compileKiroSkills(skills, projectRoot);
-  }
-  if (agentSet.has("agents-md")) {
-    await writeAgentsMarkdown(projectRoot, skills);
-  }
-
-  await writeBootstrapBlocks(projectRoot, agentSet);
 
   console.log(`Compiled ${skills.length} skills.`);
-}
-
-async function writeAgentsMarkdown(projectRoot: string, skills: Awaited<ReturnType<typeof loadSkills>>): Promise<void> {
-  const agentsPath = path.join(projectRoot, "AGENTS.md");
-  const content = renderAgentsMarkdown(skills);
-  const existing = (await fs.pathExists(agentsPath)) ? await fs.readFile(agentsPath, "utf8") : null;
-  const next = upsertManagedBlock(existing, content);
-  await fs.writeFile(agentsPath, next, "utf8");
 }
 
 export async function planCompileOutputs(projectRoot: string): Promise<PlannedCompileFile[]> {
@@ -94,78 +55,93 @@ export async function planCompileOutputs(projectRoot: string): Promise<PlannedCo
     textFile(getIndexJsonPath(projectRoot), json)
   ];
 
-  if (agentSet.has("claude")) {
-    files.push(...(await planClaudeOutputs(skills, projectRoot)));
-  }
-  if (agentSet.has("cursor")) {
-    for (const skill of skills) {
-      files.push(textFile(path.join(projectRoot, ".cursor", "rules", `cicada-${skill.id}.mdc`), renderCursorRule(skill)));
+  for (const target of AGENT_TARGETS) {
+    if (agentSet.has(target.id)) {
+      files.push(...(await planTargetOutputs(projectRoot, target, skills)));
     }
-  }
-  if (agentSet.has("copilot")) {
-    for (const skill of skills) {
-      files.push(
-        textFile(
-          path.join(projectRoot, ".github", "instructions", `cicada-${skill.id}.instructions.md`),
-          renderCopilotInstructions(skill)
-        )
-      );
-    }
-  }
-  if (agentSet.has("kiro")) {
-    for (const skill of skills) {
-      files.push(textFile(path.join(projectRoot, ".kiro", "steering", `cicada-${skill.id}.md`), renderKiroSteering(skill)));
-    }
-  }
-  if (agentSet.has("agents-md")) {
-    const agentsPath = path.join(projectRoot, "AGENTS.md");
-    const existing = (await fs.pathExists(agentsPath)) ? await fs.readFile(agentsPath, "utf8") : null;
-    files.push(textFile(agentsPath, upsertManagedBlock(existing, renderAgentsMarkdown(skills))));
   }
 
-  files.push(...(await planBootstrapBlocks(projectRoot, agentSet)));
   return files;
 }
 
-async function writeBootstrapBlocks(projectRoot: string, agents: Set<string>): Promise<void> {
-  const templatesDir = await resolveTemplatesDir();
-
-  for (const target of BOOTSTRAP_TARGETS) {
-    if (!agents.has(target.agent)) {
-      continue;
-    }
-
-    const templatePath = path.join(templatesDir, target.template);
-    const targetPath = path.join(projectRoot, target.file);
-    const content = await fs.readFile(templatePath, "utf8");
-    const existing = (await fs.pathExists(targetPath)) ? await fs.readFile(targetPath, "utf8") : null;
-
-    await fs.ensureDir(path.dirname(targetPath));
-    const next = upsertManagedBlock(existing, content);
-    await fs.writeFile(targetPath, next, "utf8");
+async function writeTargetOutputs(projectRoot: string, target: AgentTargetDefinition, skills: SkillFile[]): Promise<void> {
+  for (const file of await planTargetOutputs(projectRoot, target, skills)) {
+    await fs.ensureDir(path.dirname(file.path));
+    await fs.writeFile(file.path, file.content);
   }
 }
 
-async function planBootstrapBlocks(projectRoot: string, agents: Set<string>): Promise<PlannedCompileFile[]> {
-  const templatesDir = await resolveTemplatesDir();
+async function planTargetOutputs(
+  projectRoot: string,
+  target: AgentTargetDefinition,
+  skills: SkillFile[]
+): Promise<PlannedCompileFile[]> {
   const files: PlannedCompileFile[] = [];
 
-  for (const target of BOOTSTRAP_TARGETS) {
-    if (!agents.has(target.agent)) {
-      continue;
-    }
+  if (target.bootstrapFile) {
+    files.push(await planBootstrap(projectRoot, target, skills));
+  }
 
-    const templatePath = path.join(templatesDir, target.template);
-    const targetPath = path.join(projectRoot, target.file);
-    const content = await fs.readFile(templatePath, "utf8");
-    const existing = (await fs.pathExists(targetPath)) ? await fs.readFile(targetPath, "utf8") : null;
-    files.push(textFile(targetPath, upsertManagedBlock(existing, content)));
+  if (target.commandFile) {
+    files.push(textFile(path.join(projectRoot, target.commandFile), `${renderLearnCommand(target)}\n`));
+  }
+
+  switch (target.kind) {
+    case "claude":
+      files.push(...(await planClaudeOutputs(skills, projectRoot)));
+      break;
+    case "cursor":
+      for (const skill of skills) {
+        files.push(textFile(path.join(projectRoot, ".cursor", "rules", `nymor-${skill.id}.mdc`), renderCursorRule(skill)));
+      }
+      break;
+    case "copilot":
+      for (const skill of skills) {
+        files.push(
+          textFile(
+            path.join(projectRoot, ".github", "instructions", `nymor-${skill.id}.instructions.md`),
+            renderCopilotInstructions(skill)
+          )
+        );
+      }
+      break;
+    case "kiro":
+      for (const skill of skills) {
+        files.push(textFile(path.join(projectRoot, ".kiro", "steering", `nymor-${skill.id}.md`), renderKiroSteering(skill)));
+      }
+      break;
+    case "native-skills":
+      if (target.nativeSkillDir) {
+        files.push(...(await planNativeSkillOutputs(projectRoot, target, skills)));
+      }
+      break;
+    case "shared-md":
+    case "gemini":
+    case "windsurf":
+      break;
   }
 
   return files;
+}
+
+async function planBootstrap(
+  projectRoot: string,
+  target: AgentTargetDefinition,
+  skills: SkillFile[]
+): Promise<PlannedCompileFile> {
+  const targetPath = path.join(projectRoot, target.bootstrapFile!);
+  const content = renderBootstrap(target, skills);
+
+  if (target.id === "claude" || target.id === "agents-md" || target.id === "gemini") {
+    const existing = (await fs.pathExists(targetPath)) ? await fs.readFile(targetPath, "utf8") : null;
+    return textFile(targetPath, upsertManagedBlock(existing, content));
+  }
+
+  return textFile(targetPath, `${content.trimEnd()}\n`);
 }
 
 async function planClaudeOutputs(skills: SkillFile[], projectRoot: string): Promise<PlannedCompileFile[]> {
+  const outputRoot = path.join(projectRoot, ".claude", "skills");
   const files: PlannedCompileFile[] = [];
 
   for (const skill of skills) {
@@ -173,7 +149,30 @@ async function planClaudeOutputs(skills: SkillFile[], projectRoot: string): Prom
     for (const sourcePath of sourceFiles) {
       const relative = path.relative(skill.dirPath, sourcePath);
       files.push({
-        path: path.join(projectRoot, ".claude", "skills", skill.id, relative),
+        path: path.join(outputRoot, skill.id, relative),
+        content: await fs.readFile(sourcePath)
+      });
+    }
+  }
+
+  return files;
+}
+
+async function planNativeSkillOutputs(
+  projectRoot: string,
+  target: AgentTargetDefinition,
+  skills: SkillFile[]
+): Promise<PlannedCompileFile[]> {
+  const files: PlannedCompileFile[] = [
+    textFile(path.join(projectRoot, target.nativeSkillDir!, "nymor-learn", "SKILL.md"), `${renderLearnSkill(target)}\n`)
+  ];
+
+  for (const skill of skills) {
+    const sourceFiles = await listFilesRecursive(skill.dirPath);
+    for (const sourcePath of sourceFiles) {
+      const relative = path.relative(skill.dirPath, sourcePath);
+      files.push({
+        path: path.join(projectRoot, target.nativeSkillDir!, skill.id, relative),
         content: await fs.readFile(sourcePath)
       });
     }
@@ -200,21 +199,4 @@ async function listFilesRecursive(root: string): Promise<string[]> {
 
 function textFile(filePath: string, content: string): PlannedCompileFile {
   return { path: filePath, content: Buffer.from(content, "utf8") };
-}
-
-async function resolveTemplatesDir(): Promise<string> {
-  return resolveAssetDir([
-    path.resolve(__dirname, "..", "templates", "agent-bootstrap"),
-    path.resolve(__dirname, "..", "..", "src", "templates", "agent-bootstrap")
-  ]);
-}
-
-async function resolveAssetDir(candidates: string[]): Promise<string> {
-  for (const candidate of candidates) {
-    if (await fs.pathExists(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error("Unable to locate Cicada templates. Ensure agent-bootstrap templates exist.");
 }

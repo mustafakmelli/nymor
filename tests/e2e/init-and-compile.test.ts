@@ -1,27 +1,27 @@
-import { execFile, execFileSync, spawnSync } from "child_process";
-import http from "http";
-import type { AddressInfo } from "net";
+import { execFileSync, spawnSync } from "child_process";
 import os from "os";
 import path from "path";
 import fs from "fs-extra";
 import { beforeAll, describe, expect, it } from "vitest";
-import { promisify } from "util";
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const cliPath = path.join(repoRoot, "dist", "index.js");
-const registryRoot = path.join(repoRoot, "tests", "fixtures", "registry");
-const execFileAsync = promisify(execFile);
 
-describe("cicada CLI", () => {
+describe("nymor CLI", () => {
   beforeAll(() => {
     execFileSync("npm", ["run", "build"], { cwd: repoRoot, stdio: "inherit" });
   }, 60_000);
 
-  it("initializes, compiles idempotently, and passes doctor", async () => {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cicada-e2e-"));
+  it("initializes empty local memory, compiles idempotently, and passes doctor", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-e2e-"));
     await fs.writeJson(path.join(projectRoot, "package.json"), { name: "fixture", version: "1.0.0" });
 
     runCli(["init"], projectRoot);
+
+    await expect(fs.readdir(path.join(projectRoot, ".nymor", "skills"))).resolves.toEqual([]);
+    await expect(fs.readJson(path.join(projectRoot, "nymor.json"))).resolves.toMatchObject({ local: [] });
+    await expect(fs.pathExists(path.join(projectRoot, ".nymor", "skills", "commit-conventions"))).resolves.toBe(false);
+
     runCli(["compile"], projectRoot);
     const before = await readTree(projectRoot);
     runCli(["compile"], projectRoot);
@@ -31,52 +31,106 @@ describe("cicada CLI", () => {
     runCli(["doctor"], projectRoot);
   }, 60_000);
 
-  it("adds a registry skill, writes the lockfile, and reinstalls offline from cache", async () => {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cicada-add-"));
-    const home = await fs.mkdtemp(path.join(os.tmpdir(), "cicada-home-"));
-    await fs.writeJson(path.join(projectRoot, "cicada.json"), {
+  it("hides internal and removed commands from public help", () => {
+    const result = spawnSync(process.execPath, [cliPath, "--help"], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("nymor");
+    expect(result.stdout).toContain("init");
+    expect(result.stdout).not.toContain("learn");
+    expect(result.stdout).not.toContain("add");
+    expect(result.stdout).not.toContain("remove");
+    expect(result.stdout).not.toContain("update");
+  });
+
+  it("keeps the README focused on Nymor repo memory", async () => {
+    const readme = await fs.readFile(path.join(repoRoot, "README.md"), "utf8");
+
+    expect(readme).toContain("# Nymor");
+    expect(readme).toContain("/nymor-learn");
+    for (const forbidden of ["Cicada", "cicada", "registry", "draft", "approve", "starter skills", "nymor learn"]) {
+      expect(readme).not.toContain(forbidden);
+    }
+  });
+
+  it("keeps the hidden learn fallback working", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-learn-"));
+    await fs.writeJson(path.join(projectRoot, "nymor.json"), {
       version: "1",
       agents: [],
-      skills: {},
       local: []
     });
 
-    const server = await startRegistryServer();
-    await runCliAsync(["add", "@cicada/commit-conventions"], projectRoot, {
-      CICADA_REGISTRY_URL: server.url,
-      HOME: home
-    });
-    await server.close();
-
-    await expect(fs.pathExists(path.join(projectRoot, ".cicada", "skills", "@cicada__commit-conventions", "SKILL.md"))).resolves.toBe(
-      true
+    runCli(
+      [
+        "learn",
+        "Use Server Actions for all mutations",
+        "--id",
+        "server-actions-only",
+        "--name",
+        "Server Actions Only",
+        "--description",
+        "Use this when changing app mutations",
+        "--globs",
+        "app/**/*.ts,app/**/*.tsx",
+        "--why",
+        "Keeps mutations close to UI and simplifies auth.",
+        "--example",
+        "Prefer an exported 'use server' action over a new API route."
+      ],
+      projectRoot
     );
-    await expect(fs.readJson(path.join(projectRoot, "cicada.lock"))).resolves.toMatchObject({
-      skills: {
-        "@cicada/commit-conventions": {
-          version: "1.0.0",
-          integrity: expect.stringMatching(/^sha256-/)
-        }
-      }
-    });
 
-    await fs.remove(path.join(projectRoot, ".cicada", "skills", "@cicada__commit-conventions"));
-    await runCliAsync(["add", "--offline", "@cicada/commit-conventions"], projectRoot, { HOME: home });
-    await expect(fs.pathExists(path.join(projectRoot, ".cicada", "skills", "@cicada__commit-conventions", "SKILL.md"))).resolves.toBe(
-      true
+    const skillPath = path.join(projectRoot, ".nymor", "skills", "server-actions-only", "SKILL.md");
+    await expect(fs.readFile(skillPath, "utf8")).resolves.toContain("Keeps mutations close to UI and simplifies auth.");
+    await expect(fs.readJson(path.join(projectRoot, "nymor.json"))).resolves.toMatchObject({
+      local: ["server-actions-only"]
+    });
+  }, 60_000);
+
+  it("writes Nymor outputs for the common agent set", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-agents-"));
+    await fs.writeJson(path.join(projectRoot, "nymor.json"), {
+      version: "1",
+      agents: ["claude", "cursor", "copilot", "kiro", "agents-md", "gemini", "windsurf", "goose", "opencode"],
+      local: ["demo"]
+    });
+    await writeDemoSkill(projectRoot);
+
+    runCli(["compile"], projectRoot);
+
+    await expect(fs.pathExists(path.join(projectRoot, ".claude", "skills", "demo", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".cursor", "rules", "nymor-demo.mdc"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".github", "instructions", "nymor-demo.instructions.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".kiro", "steering", "nymor-demo.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".goose", "skills", "demo", "SKILL.md"))).resolves.toBe(true);
+    await expect(fs.pathExists(path.join(projectRoot, ".opencode", "skill", "demo", "SKILL.md"))).resolves.toBe(true);
+
+    await expect(fs.readFile(path.join(projectRoot, ".claude", "commands", "nymor-learn.md"), "utf8")).resolves.toContain(
+      "This looks like a reusable repo rule. Want me to capture it with /nymor-learn?"
+    );
+    await expect(fs.readFile(path.join(projectRoot, ".cursor", "commands", "nymor-learn.md"), "utf8")).resolves.toContain(
+      "Only create a skill after the user explicitly invokes /nymor-learn."
+    );
+    await expect(fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")).resolves.toContain("<!-- nymor:start -->");
+    await expect(fs.readFile(path.join(projectRoot, "GEMINI.md"), "utf8")).resolves.toContain("/nymor-learn");
+    await expect(fs.readFile(path.join(projectRoot, ".windsurf", "rules", "nymor.md"), "utf8")).resolves.toContain(
+      ".nymor/skills/"
     );
   }, 60_000);
 
   it("doctor flags broken globs", async () => {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "cicada-doctor-"));
-    await fs.writeJson(path.join(projectRoot, "cicada.json"), {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-doctor-"));
+    await fs.writeJson(path.join(projectRoot, "nymor.json"), {
       version: "1",
       agents: [],
-      skills: {},
       local: ["broken"]
     });
     await fs.outputFile(
-      path.join(projectRoot, ".cicada", "skills", "broken", "SKILL.md"),
+      path.join(projectRoot, ".nymor", "skills", "broken", "SKILL.md"),
       [
         "---",
         "name: Broken Glob",
@@ -116,12 +170,29 @@ function runCli(args: string[], cwd: string, env: Record<string, string> = {}): 
   });
 }
 
-async function runCliAsync(args: string[], cwd: string, env: Record<string, string> = {}): Promise<void> {
-  await execFileAsync(process.execPath, [cliPath, ...args], {
-    cwd,
-    env: { ...process.env, ...env },
-    timeout: 60_000
-  });
+async function writeDemoSkill(projectRoot: string): Promise<void> {
+  await fs.outputFile(
+    path.join(projectRoot, ".nymor", "skills", "demo", "SKILL.md"),
+    [
+      "---",
+      "name: Demo",
+      "description: Demo skill",
+      "globs:",
+      "  - \"**/*\"",
+      "alwaysApply: true",
+      "---",
+      "",
+      "## Rule",
+      "Use demos.",
+      "",
+      "## Why",
+      "For tests.",
+      "",
+      "## Example",
+      "demo"
+    ].join("\n"),
+    "utf8"
+  );
 }
 
 async function readTree(root: string): Promise<Record<string, string>> {
@@ -149,30 +220,4 @@ async function listFiles(root: string): Promise<string[]> {
   }
 
   return files.sort();
-}
-
-async function startRegistryServer(): Promise<{ url: string; close: () => Promise<void> }> {
-  const server = http.createServer(async (request, response) => {
-    const requestPath = decodeURIComponent(new URL(request.url ?? "/", "http://localhost").pathname);
-    const filePath = path.join(registryRoot, requestPath);
-
-    if (!filePath.startsWith(registryRoot) || !(await fs.pathExists(filePath))) {
-      response.writeHead(404).end();
-      return;
-    }
-
-    const body = await fs.readFile(filePath);
-    response.setHeader("Connection", "close");
-    response.setHeader("Content-Length", body.length);
-    response.writeHead(200);
-    response.end(body);
-  });
-
-  await new Promise<void>((resolve) => server.listen(0, resolve));
-  const address = server.address() as AddressInfo;
-
-  return {
-    url: `http://127.0.0.1:${address.port}`,
-    close: () => new Promise((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
-  };
 }

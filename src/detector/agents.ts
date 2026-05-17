@@ -1,30 +1,26 @@
 import path from "path";
 import fs from "fs-extra";
+import { AGENT_TARGETS, AgentTarget } from "../agents/targets";
 
-export interface AgentPresence {
-  claude: boolean;
-  cursor: boolean;
-  copilot: boolean;
-  kiro: boolean;
-  agentsMd: boolean;
-}
+export type AgentPresence = Record<AgentTarget, boolean>;
 
 export async function detectAgents(projectRoot: string): Promise<AgentPresence> {
-  const [claudeDir, claudeMd, cursor, copilotFile, copilotDir, kiro, agentsMd] = await Promise.all([
-    fs.pathExists(path.join(projectRoot, ".claude")),
-    fs.pathExists(path.join(projectRoot, "CLAUDE.md")),
-    fs.pathExists(path.join(projectRoot, ".cursor")),
-    fs.pathExists(path.join(projectRoot, ".github", "copilot-instructions.md")),
-    fs.pathExists(path.join(projectRoot, ".github", "instructions")),
-    fs.pathExists(path.join(projectRoot, ".kiro")),
-    fs.pathExists(path.join(projectRoot, "AGENTS.md"))
-  ]);
+  const entries = await Promise.all(
+    AGENT_TARGETS.map(async (target) => {
+      const detected = await hasAnyPath(projectRoot, target.detectPaths);
+      return [target.id, detected] as const;
+    })
+  );
 
-  return {
-    claude: claudeDir || claudeMd,
-    cursor,
-    copilot: copilotFile || copilotDir,
-    kiro,
-    agentsMd
-  };
+  return Object.fromEntries(entries) as AgentPresence;
+}
+
+async function hasAnyPath(projectRoot: string, relativePaths: string[]): Promise<boolean> {
+  for (const relativePath of relativePaths) {
+    if (await fs.pathExists(path.join(projectRoot, relativePath))) {
+      return true;
+    }
+  }
+
+  return false;
 }

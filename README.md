@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@mustafakmelli/nymor"><img src="https://img.shields.io/npm/v/%40mustafakmelli%2Fnymor?color=blue&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/nymor"><img src="https://img.shields.io/npm/v/nymor?color=blue&label=npm" alt="npm version" /></a>
   <a href="https://github.com/mustafakmelli/nymor/blob/main/LICENSE"><img src="https://img.shields.io/github/license/mustafakmelli/nymor?color=black" alt="license" /></a>
   <img src="https://img.shields.io/badge/zero-network_calls-green" alt="zero network" />
   <img src="https://img.shields.io/badge/agents-10_supported-orange" alt="agents" />
@@ -52,13 +52,13 @@ Next chat. Same rule. Already known.
 ## Install
 
 ```sh
-npm install -g @mustafakmelli/nymor
+npm install -g nymor
 ```
 
 Or run without installing:
 
 ```sh
-npx @mustafakmelli/nymor init
+npx nymor init
 ```
 
 ---

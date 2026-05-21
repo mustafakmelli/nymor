@@ -9,7 +9,14 @@ export type AgentTarget =
   | "gemini"
   | "windsurf"
   | "goose"
-  | "opencode";
+  | "opencode"
+  | "cline"
+  | "cody"
+  | "tabnine"
+  | "codewhisperer"
+  | "jetbrains"
+  | "replit"
+  | "zed";
 
 export type AgentOutputKind =
   | "claude"
@@ -19,7 +26,14 @@ export type AgentOutputKind =
   | "shared-md"
   | "gemini"
   | "windsurf"
-  | "native-skills";
+  | "native-skills"
+  | "cline"
+  | "cody"
+  | "tabnine"
+  | "codewhisperer"
+  | "jetbrains"
+  | "replit"
+  | "zed";
 
 export interface AgentTargetDefinition {
   id: AgentTarget;
@@ -123,10 +137,73 @@ export const AGENT_TARGETS: AgentTargetDefinition[] = [
     detectPaths: [".opencode", "opencode.json"],
     kind: "native-skills",
     nativeSkillDir: path.join(".opencode", "skill")
+  },
+  {
+    id: "cline",
+    label: "Cline",
+    short: "Cline",
+    description: "Cline rules and custom instructions",
+    detectPaths: [".cline", "CLINE.md"],
+    kind: "cline",
+    bootstrapFile: path.join(".cline", "rules", "nymor.md")
+  },
+  {
+    id: "cody",
+    label: "Sourcegraph Cody",
+    short: "Cody",
+    description: "Cody custom instructions",
+    detectPaths: [".cody", "CODY.md", "cody.json"],
+    kind: "cody",
+    bootstrapFile: path.join(".cody", "instructions", "nymor.md")
+  },
+  {
+    id: "tabnine",
+    label: "Tabnine",
+    short: "Tabnine",
+    description: "Tabnine custom instructions",
+    detectPaths: [".tabnine", "tabnine.json"],
+    kind: "tabnine",
+    bootstrapFile: path.join(".tabnine", "instructions", "nymor.md")
+  },
+  {
+    id: "codewhisperer",
+    label: "Amazon CodeWhisperer",
+    short: "CodeWhisperer",
+    description: "Amazon CodeWhisperer custom guidance",
+    detectPaths: [".aws", "CODEWHISPERER.md"],
+    kind: "codewhisperer",
+    bootstrapFile: "CODEWHISPERER.md"
+  },
+  {
+    id: "jetbrains",
+    label: "JetBrains AI Assistant",
+    short: "JetBrains",
+    description: "JetBrains AI Assistant custom instructions",
+    detectPaths: [".idea", "JETBRAINS.md"],
+    kind: "jetbrains",
+    bootstrapFile: path.join(".idea", "ai-assistant", "nymor.md")
+  },
+  {
+    id: "replit",
+    label: "Replit AI",
+    short: "Replit",
+    description: "Replit AI custom instructions",
+    detectPaths: [".replit", "REPLIT.md"],
+    kind: "replit",
+    bootstrapFile: path.join(".replit", "ai-instructions", "nymor.md")
+  },
+  {
+    id: "zed",
+    label: "Zed AI",
+    short: "Zed",
+    description: "Zed AI custom instructions",
+    detectPaths: [".zed", "ZED.md"],
+    kind: "zed",
+    bootstrapFile: path.join(".zed", "ai-rules", "nymor.md")
   }
 ];
 
-export const DEFAULT_AGENT_TARGETS: AgentTarget[] = AGENT_TARGETS.map((target) => target.id);
+export const DEFAULT_AGENT_TARGETS: AgentTarget[] = ["claude", "cursor", "copilot", "kiro", "agents-md"];
 
 export function getAgentTargetDefinition(id: AgentTarget): AgentTargetDefinition {
   const target = AGENT_TARGETS.find((item) => item.id === id);

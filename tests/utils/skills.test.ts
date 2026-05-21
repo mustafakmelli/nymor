@@ -12,7 +12,8 @@ describe("parseSkillContent", () => {
       name: "Demo",
       description: "",
       globs: ["src/**/*.ts"],
-      alwaysApply: true
+      alwaysApply: true,
+      forbiddenPatterns: []
     });
     expect(parsed.body).toContain("## Rule");
   });

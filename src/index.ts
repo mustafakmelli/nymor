@@ -6,6 +6,10 @@ import { learnCommand } from "./commands/learn";
 import { listCommand } from "./commands/list";
 import { doctorCommand } from "./commands/doctor";
 import { validateCommand } from "./commands/validate";
+import { lintCommand } from "./commands/lint";
+import { mineCommand } from "./commands/mine";
+import { importCommand } from "./commands/import";
+import { mcpCommand } from "./commands/mcp";
 
 const program = new Command();
 
@@ -22,7 +26,9 @@ program
 program
   .command("compile")
   .description("Compile skills to agent surfaces")
-  .action(() => compileCommand());
+  .option("--focus <files...>", "Focus compilation on a list of files")
+  .option("--git", "Focus compilation on files modified in Git")
+  .action((options) => compileCommand(options));
 
 program
   .command("learn", { hidden: true })
@@ -51,6 +57,27 @@ program
   .command("validate")
   .description("Validate skill file format and index entries")
   .action(() => validateCommand());
+
+program
+  .command("lint")
+  .description("Lint codebase against forbidden patterns in skills")
+  .action(() => lintCommand());
+
+program
+  .command("mine")
+  .description("Scan repository for inline skill comments")
+  .action(() => mineCommand());
+
+program
+  .command("import")
+  .description("Import rules from existing systems (e.g. Cursor)")
+  .option("--from-cursor", "Import from .cursorrules and .cursor/rules/*.mdc")
+  .action((options) => importCommand(options));
+
+program
+  .command("mcp")
+  .description("Start Nymor MCP Server over stdin/stdout")
+  .action(() => mcpCommand());
 
 program.parseAsync(process.argv).catch((err) => {
   const message = err instanceof Error ? err.message : String(err);

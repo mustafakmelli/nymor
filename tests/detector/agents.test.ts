@@ -26,7 +26,14 @@ describe("detectAgents", () => {
       gemini: true,
       windsurf: true,
       goose: true,
-      opencode: true
+      opencode: true,
+      cline: false,
+      cody: false,
+      tabnine: false,
+      codewhisperer: false,
+      jetbrains: false,
+      replit: false,
+      zed: false
     });
   });
 
@@ -42,7 +49,14 @@ describe("detectAgents", () => {
       gemini: false,
       windsurf: false,
       goose: false,
-      opencode: false
+      opencode: false,
+      cline: false,
+      cody: false,
+      tabnine: false,
+      codewhisperer: false,
+      jetbrains: false,
+      replit: false,
+      zed: false
     });
   });
 });

@@ -1,5 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
+import { execSync } from "child_process";
+import { minimatch } from "minimatch";
 import { AGENT_TARGETS, AgentTargetDefinition } from "../agents/targets";
 import { renderCopilotInstructions } from "../compiler/copilot";
 import { renderCursorRule } from "../compiler/cursor";
@@ -15,7 +17,40 @@ export interface PlannedCompileFile {
   content: Buffer;
 }
 
-export async function compileCommand(): Promise<void> {
+export function getGitModifiedFiles(projectRoot: string): string[] {
+  try {
+    const stdout = execSync("git status --porcelain", { cwd: projectRoot, encoding: "utf8" });
+    return stdout
+      .split("\n")
+      .map((line) => {
+        if (line.length < 4) return "";
+        return line.slice(3).trim().replace(/^"|"$/g, "");
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function filterSkills(skills: SkillFile[], focusFiles: string[]): SkillFile[] {
+  if (focusFiles.length === 0) {
+    return skills;
+  }
+  return skills.filter((skill) => {
+    if (skill.frontmatter.alwaysApply) {
+      return true;
+    }
+    const globs = skill.frontmatter.globs ?? [];
+    if (globs.length === 0) {
+      return false;
+    }
+    return focusFiles.some((file) =>
+      globs.some((globPattern) => minimatch(file, globPattern, { dot: true, matchBase: true }))
+    );
+  });
+}
+
+export async function compileCommand(options: { focus?: string[]; git?: boolean } = {}): Promise<void> {
   const projectRoot = process.cwd();
   const skillsDir = getSkillsDir(projectRoot);
 
@@ -25,29 +60,46 @@ export async function compileCommand(): Promise<void> {
     return;
   }
 
-  const skills = await loadSkills(skillsDir);
-  const { markdown, json } = buildSkillIndex(skills);
+  const allSkills = await loadSkills(skillsDir);
+  const { markdown, json } = buildSkillIndex(allSkills);
 
   await fs.ensureDir(getNymorDir(projectRoot));
   await fs.writeFile(getIndexMarkdownPath(projectRoot), markdown, "utf8");
   await fs.writeFile(getIndexJsonPath(projectRoot), json, "utf8");
+
+  let focusFiles: string[] = [];
+  if (options.focus) {
+    focusFiles.push(...options.focus);
+  }
+  if (options.git) {
+    focusFiles.push(...getGitModifiedFiles(projectRoot));
+  }
+
+  const activeSkills = filterSkills(allSkills, focusFiles);
 
   const manifest = await readManifest(projectRoot);
   const agentSet = new Set(manifest.agents);
 
   for (const target of AGENT_TARGETS) {
     if (agentSet.has(target.id)) {
-      await writeTargetOutputs(projectRoot, target, skills);
+      await writeTargetOutputs(projectRoot, target, activeSkills);
     }
   }
 
-  console.log(`Compiled ${skills.length} skills.`);
+  if (focusFiles.length > 0) {
+    console.log(`Compiled ${activeSkills.length} of ${allSkills.length} skills (focus-mode active).`);
+  } else {
+    console.log(`Compiled ${allSkills.length} skills.`);
+  }
 }
 
-export async function planCompileOutputs(projectRoot: string): Promise<PlannedCompileFile[]> {
+export async function planCompileOutputs(
+  projectRoot: string,
+  options: { focus?: string[]; git?: boolean } = {}
+): Promise<PlannedCompileFile[]> {
   const skillsDir = getSkillsDir(projectRoot);
-  const skills = await loadSkills(skillsDir);
-  const { markdown, json } = buildSkillIndex(skills);
+  const allSkills = await loadSkills(skillsDir);
+  const { markdown, json } = buildSkillIndex(allSkills);
   const manifest = await readManifest(projectRoot);
   const agentSet = new Set(manifest.agents);
   const files: PlannedCompileFile[] = [
@@ -55,9 +107,19 @@ export async function planCompileOutputs(projectRoot: string): Promise<PlannedCo
     textFile(getIndexJsonPath(projectRoot), json)
   ];
 
+  let focusFiles: string[] = [];
+  if (options.focus) {
+    focusFiles.push(...options.focus);
+  }
+  if (options.git) {
+    focusFiles.push(...getGitModifiedFiles(projectRoot));
+  }
+
+  const activeSkills = filterSkills(allSkills, focusFiles);
+
   for (const target of AGENT_TARGETS) {
     if (agentSet.has(target.id)) {
-      files.push(...(await planTargetOutputs(projectRoot, target, skills)));
+      files.push(...(await planTargetOutputs(projectRoot, target, activeSkills)));
     }
   }
 

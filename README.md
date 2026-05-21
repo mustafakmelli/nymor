@@ -32,6 +32,37 @@ When a rule is worth keeping, `/nymor-learn` captures it as a skill — committe
 
 ---
 
+## The Webpack moment for AI agents
+
+In 2015, every JavaScript project had the same painful problem: you couldn't write modern code and expect it to run everywhere. Chrome, Firefox, Safari, and IE all behaved differently. Developers manually maintained separate versions of the same logic for each target.
+
+**Babel** solved that: *write modern JS once → it compiles to work everywhere.*  
+**Webpack** solved that: *bundle your modules and rules → one unified output for any target.*
+
+They became invisible infrastructure. Every serious project used them automatically.
+
+---
+
+**AI agents have the same problem today.**
+
+Every agent has its own rules format. Claude uses `CLAUDE.md`. Cursor uses `.cursor/rules/`. Copilot uses `.github/instructions/`. Windsurf, Kiro, Goose, Codex — all different. If you want your team's conventions respected everywhere, you maintain duplicate files manually, across every agent you use.
+
+```
+The Babel/Webpack era              The Nymor era
+────────────────────────────       ──────────────────────────────
+Write modern JS once          →    Write your rules once in nymor.md
+↓                                  ↓
+Babel compiles it             →    Nymor compiles + syncs them
+↓                                  ↓
+Runs in Chrome, Firefox,      →    Works in Claude, Cursor, Copilot,
+Safari, IE, Node...                Windsurf, Kiro, Goose, and any agent
+```
+
+**Nymor is the Babel/Webpack of AI agent rules.**  
+Write your conventions once. Nymor compiles them into every agent your team uses.
+
+---
+
 ## How it feels
 
 ```

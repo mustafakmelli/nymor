@@ -7,6 +7,7 @@ export interface SkillFrontmatter {
   description?: string;
   globs?: string[];
   alwaysApply?: boolean;
+  forbiddenPatterns?: string[];
 }
 
 export interface SkillFile {
@@ -91,7 +92,8 @@ export function parseSkillContent(content: string, id: string): { frontmatter: S
       name: data.name,
       description: data.description ?? "",
       globs,
-      alwaysApply: Boolean(data.alwaysApply)
+      alwaysApply: Boolean(data.alwaysApply),
+      forbiddenPatterns: Array.isArray(data.forbiddenPatterns) ? data.forbiddenPatterns : []
     },
     body
   };

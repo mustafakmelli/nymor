@@ -3,6 +3,14 @@
   "version": "1.1.0",
   "description": "Teach your repo what your AI agents keep forgetting",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mustafakmelli/nymor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mustafakmelli/nymor/issues"
+  },
+  "homepage": "https://github.com/mustafakmelli/nymor#readme",
   "bin": {
     "nymor": "./dist/index.js"
   },

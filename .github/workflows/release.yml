@@ -84,15 +84,38 @@ jobs:
           TARBALL="$(node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); console.log(data[0].filename);" <<< "$PACK_OUTPUT")"
           echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve release notes
+        id: release_notes
+        run: |
+          NOTES_FILE="release-notes/${RELEASE_TAG}.md"
+
+          if [ -f "$NOTES_FILE" ]; then
+            echo "mode=custom" >> "$GITHUB_OUTPUT"
+            echo "file=${NOTES_FILE}" >> "$GITHUB_OUTPUT"
+            echo "Using custom release notes from ${NOTES_FILE}."
+          else
+            echo "mode=generated" >> "$GITHUB_OUTPUT"
+            echo "file=" >> "$GITHUB_OUTPUT"
+            echo "No custom release notes found; GitHub will generate notes."
+          fi
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          NOTES_FILE: ${{ steps.release_notes.outputs.file }}
           TARBALL: ${{ steps.pack.outputs.tarball }}
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            if [ -n "$NOTES_FILE" ]; then
+              gh release edit "$RELEASE_TAG" --title "$RELEASE_TAG" --notes-file "$NOTES_FILE"
+            fi
             gh release upload "$RELEASE_TAG" "$TARBALL" --clobber
           else
-            gh release create "$RELEASE_TAG" "$TARBALL" --verify-tag --generate-notes --title "$RELEASE_TAG"
+            if [ -n "$NOTES_FILE" ]; then
+              gh release create "$RELEASE_TAG" "$TARBALL" --verify-tag --title "$RELEASE_TAG" --notes-file "$NOTES_FILE"
+            else
+              gh release create "$RELEASE_TAG" "$TARBALL" --verify-tag --generate-notes --title "$RELEASE_TAG"
+            fi
           fi
 
       - name: Publish to npm

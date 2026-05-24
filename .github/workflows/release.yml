@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish npm package and GitHub Release
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Validate tag matches package version
+        run: |
+          node <<'NODE'
+          const pkg = require("./package.json");
+          const tag = process.env.RELEASE_TAG;
+          const version = tag.replace(/^v/, "");
+
+          if (!/^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(tag)) {
+            throw new Error(`Release tag must look like vX.Y.Z. Received: ${tag}`);
+          }
+
+          if (pkg.version !== version) {
+            throw new Error(`Tag ${tag} does not match package.json version ${pkg.version}.`);
+          }
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Check npm publication status
+        id: npm_status
+        run: |
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "${PACKAGE_NAME}@${PACKAGE_VERSION} is already published; npm publish will be skipped."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create package tarball
+        id: pack
+        run: |
+          PACK_OUTPUT="$(npm pack --json)"
+          TARBALL="$(node -e "const fs = require('fs'); const data = JSON.parse(fs.readFileSync(0, 'utf8')); console.log(data[0].filename);" <<< "$PACK_OUTPUT")"
+          echo "tarball=${TARBALL}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$TARBALL" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$TARBALL" --verify-tag --generate-notes --title "$RELEASE_TAG"
+          fi
+
+      - name: Publish to npm
+        if: steps.npm_status.outputs.published == 'false'
+        run: npm publish

@@ -11,12 +11,14 @@ import { mineCommand } from "./commands/mine";
 import { importCommand } from "./commands/import";
 import { mcpCommand } from "./commands/mcp";
 
+const packageJson = require("../package.json") as { version: string };
+
 const program = new Command();
 
 program
   .name("nymor")
   .description("Teach your repo what your AI agents keep forgetting")
-  .version("2.0.0");
+  .version(packageJson.version);
 
 program
   .command("init")

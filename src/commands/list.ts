@@ -1,9 +1,57 @@
 import fs from "fs-extra";
+import { minimatch } from "minimatch";
 import { getIndexJsonPath, getSkillsDir } from "../utils/paths";
 import { loadSkills, SkillIndexEntry } from "../utils/skills";
 import { readManifest } from "../utils/manifest";
+import { getGitModifiedFiles } from "./compile";
 
-export async function listCommand(): Promise<void> {
+export interface ListCommandOptions {
+  focus?: string[];
+  git?: boolean;
+}
+
+export interface SkillUsageInsight {
+  id: string;
+  alwaysApply: boolean;
+  matchedFiles: string[];
+}
+
+export function buildSkillUsageInsights(entries: SkillIndexEntry[], focusFiles: string[]): SkillUsageInsight[] {
+  const normalizedFocusFiles = Array.from(
+    new Set(focusFiles.map((file) => file.trim()).filter(Boolean))
+  );
+
+  return entries.map((entry) => {
+    if (normalizedFocusFiles.length === 0) {
+      return {
+        id: entry.id,
+        alwaysApply: entry.alwaysApply,
+        matchedFiles: []
+      };
+    }
+
+    if (entry.alwaysApply) {
+      return {
+        id: entry.id,
+        alwaysApply: true,
+        matchedFiles: [...normalizedFocusFiles]
+      };
+    }
+
+    const globs = entry.globs ?? [];
+    const matchedFiles = normalizedFocusFiles.filter((filePath) =>
+      globs.some((globPattern) => minimatch(filePath, globPattern, { dot: true, matchBase: true }))
+    );
+
+    return {
+      id: entry.id,
+      alwaysApply: false,
+      matchedFiles
+    };
+  });
+}
+
+export async function listCommand(options: ListCommandOptions = {}): Promise<void> {
   const projectRoot = process.cwd();
   const skillsDir = getSkillsDir(projectRoot);
   const indexJsonPath = getIndexJsonPath(projectRoot);
@@ -53,5 +101,36 @@ export async function listCommand(): Promise<void> {
     const sourceColumn = source.padEnd(sourceWidth, " ");
     const description = entry.description || entry.name || "(no description)";
     console.log(`  ${slug}  ${sourceColumn}  ${arrow} ${description}`);
+  });
+
+  const focusFiles = Array.from(
+    new Set([
+      ...(options.focus ?? []),
+      ...(options.git ? getGitModifiedFiles(projectRoot) : [])
+    ])
+  );
+
+  if (focusFiles.length === 0) {
+    return;
+  }
+
+  const insights = buildSkillUsageInsights(entries, focusFiles);
+  const matched = insights.filter((insight) => insight.matchedFiles.length > 0);
+  const unused = insights.filter((insight) => insight.matchedFiles.length === 0);
+
+  console.log("");
+  console.log(`Usage insights (${focusFiles.length} focused file${focusFiles.length === 1 ? "" : "s"})`);
+  console.log(`  Matched skills (${matched.length})`);
+
+  matched.forEach((insight) => {
+    const detail = insight.alwaysApply
+      ? `always apply (${insight.matchedFiles.length} file${insight.matchedFiles.length === 1 ? "" : "s"})`
+      : `${insight.matchedFiles.length} match${insight.matchedFiles.length === 1 ? "" : "es"}`;
+    console.log(`    - ${insight.id} (${detail})`);
+  });
+
+  console.log(`  Unused skills (${unused.length})`);
+  unused.forEach((insight) => {
+    console.log(`    - ${insight.id}`);
   });
 }

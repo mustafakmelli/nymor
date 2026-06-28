@@ -164,6 +164,42 @@ describe("nymor CLI", () => {
     expect(result.status).toBe(1);
     expect(`${result.stdout}${result.stderr}`).toContain("no matches: nope/**/*.fake");
   }, 60_000);
+
+  it("shows usage insights with --focus in list output", async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-list-insights-"));
+    await fs.writeJson(path.join(projectRoot, "nymor.json"), {
+      version: "1",
+      agents: [],
+      local: ["frontend", "backend"]
+    });
+
+    await writeSkill(
+      projectRoot,
+      "frontend",
+      "Frontend",
+      ["src/**/*.tsx"],
+      false
+    );
+    await writeSkill(
+      projectRoot,
+      "backend",
+      "Backend",
+      ["api/**/*.ts"],
+      false
+    );
+
+    const result = spawnSync(process.execPath, [cliPath, "list", "--focus", "src/components/App.tsx"], {
+      cwd: projectRoot,
+      encoding: "utf8"
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Usage insights (1 focused file)");
+    expect(result.stdout).toContain("Matched skills (1)");
+    expect(result.stdout).toContain("Unused skills (1)");
+    expect(result.stdout).toContain("frontend");
+    expect(result.stdout).toContain("backend");
+  }, 60_000);
 });
 
 function runCli(args: string[], cwd: string, env: Record<string, string> = {}): void {
@@ -175,19 +211,30 @@ function runCli(args: string[], cwd: string, env: Record<string, string> = {}): 
 }
 
 async function writeDemoSkill(projectRoot: string): Promise<void> {
+  await writeSkill(projectRoot, "demo", "Demo", ["**/*"], true, "Demo skill");
+}
+
+async function writeSkill(
+  projectRoot: string,
+  id: string,
+  name: string,
+  globs: string[],
+  alwaysApply: boolean,
+  description = `${name} skill`
+): Promise<void> {
   await fs.outputFile(
-    path.join(projectRoot, ".nymor", "skills", "demo", "SKILL.md"),
+    path.join(projectRoot, ".nymor", "skills", id, "SKILL.md"),
     [
       "---",
-      "name: Demo",
-      "description: Demo skill",
+      `name: ${name}`,
+      `description: ${description}`,
       "globs:",
-      "  - \"**/*\"",
-      "alwaysApply: true",
+      ...globs.map((glob) => `  - "${glob}"`),
+      `alwaysApply: ${alwaysApply ? "true" : "false"}`,
       "---",
       "",
       "## Rule",
-      "Use demos.",
+      `Use ${name.toLowerCase()} rules.`,
       "",
       "## Why",
       "For tests.",

@@ -48,7 +48,9 @@ program
 program
   .command("list")
   .description("List active repo skills")
-  .action(() => listCommand());
+  .option("--focus <files...>", "Show usage insights for a list of files")
+  .option("--git", "Show usage insights for files modified in Git")
+  .action((options) => listCommand(options));
 
 program
   .command("doctor")

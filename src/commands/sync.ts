@@ -192,26 +192,75 @@ async function runDryRun(projectRoot: string): Promise<void> {
 async function autoImportExistingRules(projectRoot: string, skillsDir: string): Promise<number> {
   let count = 0;
 
-  // Import .cursorrules
-  const globalCursorRules = path.join(projectRoot, ".cursorrules");
-  if (await fs.pathExists(globalCursorRules)) {
-    const content = await fs.readFile(globalCursorRules, "utf8");
-    const slug = "global-cursor-rules";
-    const skillPath = path.join(skillsDir, slug, "SKILL.md");
-    if (!(await fs.pathExists(skillPath))) {
-      await writeImportedSkill(skillPath, {
-        name: "Global Cursor Rules",
-        description: "Imported from .cursorrules",
-        globs: ["**/*"],
-        alwaysApply: true,
-        body: content
-      });
-      await registerSkillInManifest(projectRoot, slug);
-      count++;
+  // Flat-file imports: single markdown files → one skill each
+  const flatImports: Array<{ file: string; slug: string; name: string; description: string }> = [
+    {
+      file: ".cursorrules",
+      slug: "global-cursor-rules",
+      name: "Global Cursor Rules",
+      description: "Imported from .cursorrules"
+    },
+    {
+      file: path.join(".github", "copilot-instructions.md"),
+      slug: "copilot-instructions",
+      name: "Copilot Instructions",
+      description: "Imported from .github/copilot-instructions.md"
+    },
+    {
+      file: "CLAUDE.md",
+      slug: "claude-instructions",
+      name: "Claude Instructions",
+      description: "Imported from CLAUDE.md"
+    },
+    {
+      file: "GEMINI.md",
+      slug: "gemini-instructions",
+      name: "Gemini Instructions",
+      description: "Imported from GEMINI.md"
+    },
+    {
+      file: ".windsurfrules",
+      slug: "windsurf-rules",
+      name: "Windsurf Rules",
+      description: "Imported from .windsurfrules"
+    },
+    {
+      file: "CLINE.md",
+      slug: "cline-instructions",
+      name: "Cline Instructions",
+      description: "Imported from CLINE.md"
+    },
+    {
+      file: "AGENTS.md",
+      slug: "agents-instructions",
+      name: "Agent Instructions",
+      description: "Imported from AGENTS.md"
     }
+  ];
+
+  for (const entry of flatImports) {
+    const filePath = path.join(projectRoot, entry.file);
+    if (!(await fs.pathExists(filePath))) continue;
+
+    const skillPath = path.join(skillsDir, entry.slug, "SKILL.md");
+    if (await fs.pathExists(skillPath)) continue;
+
+    // Skip files that are nymor-managed (contain nymor block marker)
+    const raw = await fs.readFile(filePath, "utf8");
+    if (raw.includes("<!-- nymor:start -->")) continue;
+
+    await writeImportedSkill(skillPath, {
+      name: entry.name,
+      description: entry.description,
+      globs: ["**/*"],
+      alwaysApply: true,
+      body: raw
+    });
+    await registerSkillInManifest(projectRoot, entry.slug);
+    count++;
   }
 
-  // Import .cursor/rules/*.mdc (skip nymor-managed files)
+  // Directory imports: .cursor/rules/*.mdc
   const cursorRulesDir = path.join(projectRoot, ".cursor", "rules");
   if (await fs.pathExists(cursorRulesDir)) {
     const entries = await fs.readdir(cursorRulesDir, { withFileTypes: true });
@@ -243,8 +292,48 @@ async function autoImportExistingRules(projectRoot: string, skillsDir: string): 
     }
   }
 
+  // Directory imports: .github/instructions/*.instructions.md (non-nymor)
+  const copilotInstructionsDir = path.join(projectRoot, ".github", "instructions");
+  if (await fs.pathExists(copilotInstructionsDir)) {
+    const entries = await fs.readdir(copilotInstructionsDir, { withFileTypes: true });
+    const mdFiles = entries.filter(
+      (e) =>
+        e.isFile() &&
+        e.name.endsWith(".instructions.md") &&
+        !e.name.startsWith("nymor-") &&
+        e.name !== "nymor-bootstrap.instructions.md"
+    );
+    for (const entry of mdFiles) {
+      const mdPath = path.join(copilotInstructionsDir, entry.name);
+      const raw = await fs.readFile(mdPath, "utf8");
+      try {
+        const { frontmatter, body } = parseMdcContent(raw);
+        const baseName = entry.name.replace(/\.instructions\.md$/, "");
+        const slug = slugifyRule(baseName);
+        const skillPath = path.join(skillsDir, slug, "SKILL.md");
+        if (!(await fs.pathExists(skillPath))) {
+          const globs = frontmatter.applyTo && frontmatter.applyTo !== "**/*"
+            ? String(frontmatter.applyTo).split(",").map((g: string) => g.trim())
+            : ["**/*"];
+          await writeImportedSkill(skillPath, {
+            name: baseName,
+            description: `Imported from .github/instructions/${entry.name}`,
+            globs,
+            alwaysApply: globs[0] === "**/*",
+            body
+          });
+          await registerSkillInManifest(projectRoot, slug);
+          count++;
+        }
+      } catch {
+        // Skip unparseable files silently
+      }
+    }
+  }
+
   return count;
 }
+
 
 async function writeImportedSkill(
   skillPath: string,

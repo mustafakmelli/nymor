@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs-extra";
 import { glob } from "glob";
 import yaml from "yaml";
+import pc from "picocolors";
 import { AGENT_TARGETS, AgentTarget } from "../agents/targets";
 import { planCompileOutputs } from "./compile";
 import { NymorManifest } from "../utils/manifest";
@@ -9,13 +10,14 @@ import { getManifestPath, getSkillsDir } from "../utils/paths";
 import { listSkillDirectories } from "../utils/skills";
 
 const VALID_AGENTS: AgentTarget[] = AGENT_TARGETS.map((target) => target.id);
+const REQUIRED_SECTIONS = ["Rule", "Why", "Example"];
 
 interface CheckResult {
   ok: boolean;
+  warn?: boolean;
   label: string;
   filePath: string;
   message: string;
-  warn?: boolean;
 }
 
 interface ParsedSkillFrontmatter {
@@ -38,11 +40,21 @@ export async function doctorCommand(): Promise<void> {
   await checkCompiledOutput(projectRoot, results);
 
   for (const result of results) {
-    const status = result.warn ? "WARN" : result.ok ? "PASS" : "FAIL";
-    console.log(`${status} ${result.label} - ${result.filePath}${result.message ? ` - ${result.message}` : ""}`);
+    const icon = result.warn ? pc.yellow("WARN") : result.ok ? pc.green("PASS") : pc.red("FAIL");
+    const location = pc.dim(result.filePath);
+    const msg = result.message ? ` — ${result.message}` : "";
+    console.log(`${icon}  ${result.label}${msg}`);
+    if (result.message) {
+      console.log(`     ${location}`);
+    }
   }
 
-  if (results.some((result) => !result.ok && !result.warn)) {
+  const failures = results.filter((r) => !r.ok && !r.warn);
+  console.log("");
+  if (failures.length === 0) {
+    console.log(pc.green("✓ All checks passed."));
+  } else {
+    console.log(pc.red(`✗ ${failures.length} issue${failures.length === 1 ? "" : "s"} found.`));
     process.exitCode = 1;
   }
 }
@@ -65,7 +77,7 @@ async function checkManifest(projectRoot: string, results: CheckResult[]): Promi
 
     results.push({
       ok: errors.length === 0,
-      label: "Manifest sanity",
+      label: "Manifest (nymor.json)",
       filePath: manifestPath,
       message: errors.join("; ")
     });
@@ -74,7 +86,7 @@ async function checkManifest(projectRoot: string, results: CheckResult[]): Promi
   } catch (err) {
     results.push({
       ok: false,
-      label: "Manifest sanity",
+      label: "Manifest (nymor.json)",
       filePath: manifestPath,
       message: err instanceof Error ? err.message : String(err)
     });
@@ -91,28 +103,39 @@ async function checkSkillFrontmatter(projectRoot: string, results: CheckResult[]
     const skillPath = path.join(skillsDir, id, "SKILL.md");
     const errors: string[] = [];
     let frontmatter: Record<string, unknown> = {};
+    let body = "";
 
     if (!(await fs.pathExists(skillPath))) {
       errors.push("missing SKILL.md");
     } else {
+      const raw = await fs.readFile(skillPath, "utf8");
       try {
-        frontmatter = parseFrontmatter(await fs.readFile(skillPath, "utf8"));
+        const parsed = parseFrontmatterAndBody(raw);
+        frontmatter = parsed.frontmatter;
+        body = parsed.body;
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err));
       }
     }
 
     if (!frontmatter.name) {
-      errors.push("missing name");
+      errors.push("missing name in frontmatter");
     }
     if (frontmatter.globs !== undefined && !Array.isArray(frontmatter.globs)) {
       errors.push("globs must be an array");
     }
 
+    // Absorbed from validate: check required sections
+    for (const section of REQUIRED_SECTIONS) {
+      if (body && !hasSection(body, section)) {
+        errors.push(`missing ## ${section} section`);
+      }
+    }
+
     const isValid = errors.length === 0;
     results.push({
       ok: isValid,
-      label: "Frontmatter validity",
+      label: `Skill: ${id}`,
       filePath: skillPath,
       message: errors.join("; ")
     });
@@ -153,12 +176,15 @@ async function checkGlobExistence(
       }
     }
 
-    results.push({
-      ok: missing.length === 0,
-      label: "Glob existence",
-      filePath: skill.filePath,
-      message: missing.length > 0 ? `no matches: ${missing.join(", ")}` : ""
-    });
+    if (missing.length > 0) {
+      results.push({
+        ok: false,
+        warn: true,
+        label: `Glob scope: ${skill.id}`,
+        filePath: skill.filePath,
+        message: `no files match: ${missing.join(", ")}`
+      });
+    }
   }
 }
 
@@ -174,22 +200,13 @@ function checkDuplicateNames(
     if (previous) {
       results.push({
         ok: false,
-        label: "Duplicate names",
+        label: "Duplicate skill name",
         filePath: skill.filePath,
-        message: `duplicates ${previous.filePath}`
+        message: `"${skill.name}" already used in ${path.basename(path.dirname(previous.filePath))}`
       });
     } else {
       seen.set(skill.name, skill);
     }
-  }
-
-  if (![...seen.values()].some((skill) => hasDuplicate(skill.name, frontmatters))) {
-    results.push({
-      ok: true,
-      label: "Duplicate names",
-      filePath: getSkillsDir(projectRoot),
-      message: ""
-    });
   }
 }
 
@@ -200,44 +217,51 @@ async function checkCompiledOutput(projectRoot: string, results: CheckResult[]):
 
     for (const file of planned) {
       if (!(await fs.pathExists(file.path))) {
-        stale.push(file.path);
+        stale.push(path.relative(projectRoot, file.path));
         continue;
       }
 
       const actual = await fs.readFile(file.path);
       if (!actual.equals(file.content)) {
-        stale.push(file.path);
+        stale.push(path.relative(projectRoot, file.path));
       }
     }
 
     results.push({
       ok: stale.length === 0,
-      label: "Compiled output staleness",
+      label: "Compiled outputs",
       filePath: projectRoot,
-      message: stale.length > 0 ? "run `nymor compile`" : ""
+      message: stale.length > 0 ? `${stale.length} stale — run \`nymor sync\`` : ""
     });
   } catch (err) {
     results.push({
       ok: false,
-      label: "Compiled output staleness",
+      label: "Compiled outputs",
       filePath: projectRoot,
       message: err instanceof Error ? err.message : String(err)
     });
   }
 }
 
-function parseFrontmatter(content: string): Record<string, unknown> {
+function parseFrontmatterAndBody(content: string): { frontmatter: Record<string, unknown>; body: string } {
   const lines = content.split(/\r?\n/);
   if (lines[0]?.trim() !== "---") {
-    throw new Error("missing frontmatter");
+    throw new Error("missing frontmatter (expected --- on first line)");
   }
 
   const endIndex = lines.slice(1).findIndex((line) => line.trim() === "---");
   if (endIndex === -1) {
-    throw new Error("frontmatter is not closed");
+    throw new Error("frontmatter is not closed (missing closing ---)");
   }
 
-  return (yaml.parse(lines.slice(1, endIndex + 1).join("\n")) ?? {}) as Record<string, unknown>;
+  const frontmatter = (yaml.parse(lines.slice(1, endIndex + 1).join("\n")) ?? {}) as Record<string, unknown>;
+  const body = lines.slice(endIndex + 2).join("\n").trimStart();
+
+  return { frontmatter, body };
+}
+
+function hasSection(body: string, heading: string): boolean {
+  return new RegExp(`^##\\s+${heading}\\b`, "m").test(body);
 }
 
 function normalizeManifest(manifest: NymorManifest): NymorManifest {
@@ -246,8 +270,4 @@ function normalizeManifest(manifest: NymorManifest): NymorManifest {
     agents: manifest.agents ?? [],
     local: manifest.local ?? []
   };
-}
-
-function hasDuplicate(name: string, frontmatters: ParsedSkillFrontmatter[]): boolean {
-  return frontmatters.filter((skill) => skill.valid && skill.name === name).length > 1;
 }

@@ -1,7 +1,8 @@
 {
   "name": "nymor",
-  "version": "1.2.0",
-  "description": "Teach your repo what your AI agents keep forgetting",
+  "version": "2.0.0",
+  "description": "Sync your AI agent rules everywhere — one command, all agents",
+  "keywords": ["ai", "agent", "rules", "claude", "cursor", "copilot", "kiro", "gemini", "windsurf", "skills", "cli", "sync"],
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,7 +1,16 @@
 import path from "path";
+import { execSync } from "child_process";
 
 export function getRepoRoot(cwd: string = process.cwd()): string {
-  return cwd;
+  try {
+    return execSync("git rev-parse --show-toplevel", {
+      cwd,
+      encoding: "utf8",
+      stdio: ["pipe", "pipe", "pipe"]
+    }).trim();
+  } catch {
+    return cwd;
+  }
 }
 
 export function getNymorDir(root: string): string {

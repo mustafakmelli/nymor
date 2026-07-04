@@ -4,7 +4,7 @@ import inquirer from "inquirer";
 import type { DistinctQuestion } from "inquirer";
 import yaml from "yaml";
 import pc from "picocolors";
-import { compileCommand } from "./compile";
+import { compileAndWrite } from "./sync";
 import { readManifest, writeManifest } from "../utils/manifest";
 import { getSkillsDir } from "../utils/paths";
 
@@ -72,7 +72,7 @@ export async function learnCommand(rule: string, options: LearnOptions = {}): Pr
   }
   await writeManifest(projectRoot, manifest);
 
-  await compileCommand();
+  await compileAndWrite(projectRoot);
 
   console.log("");
   console.log(`${pc.green("✓")} Created local skill: ${skillPath}`);

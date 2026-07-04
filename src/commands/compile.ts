@@ -55,7 +55,7 @@ export async function compileCommand(options: { focus?: string[]; git?: boolean 
   const skillsDir = getSkillsDir(projectRoot);
 
   if (!(await fs.pathExists(skillsDir))) {
-    console.log("No skills found. Run nymor init first.");
+    console.log("No skills found. Run `nymor sync` first.");
     process.exitCode = 1;
     return;
   }
@@ -84,12 +84,6 @@ export async function compileCommand(options: { focus?: string[]; git?: boolean 
     if (agentSet.has(target.id)) {
       await writeTargetOutputs(projectRoot, target, activeSkills);
     }
-  }
-
-  if (focusFiles.length > 0) {
-    console.log(`Compiled ${activeSkills.length} of ${allSkills.length} skills (focus-mode active).`);
-  } else {
-    console.log(`Compiled ${allSkills.length} skills.`);
   }
 }
 
@@ -126,7 +120,7 @@ export async function planCompileOutputs(
   return files;
 }
 
-async function writeTargetOutputs(projectRoot: string, target: AgentTargetDefinition, skills: SkillFile[]): Promise<void> {
+export async function writeTargetOutputs(projectRoot: string, target: AgentTargetDefinition, skills: SkillFile[]): Promise<void> {
   for (const file of await planTargetOutputs(projectRoot, target, skills)) {
     await fs.ensureDir(path.dirname(file.path));
     await fs.writeFile(file.path, file.content);

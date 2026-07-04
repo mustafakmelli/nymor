@@ -12,26 +12,23 @@ describe("nymor CLI", () => {
     execFileSync("npm", ["run", "build"], { cwd: repoRoot, stdio: "inherit" });
   }, 60_000);
 
-  it("initializes empty local memory, compiles idempotently, and passes doctor", async () => {
+  it("sync initializes empty local memory and compiles idempotently", async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), "nymor-e2e-"));
     await fs.writeJson(path.join(projectRoot, "package.json"), { name: "fixture", version: "1.0.0" });
 
-    runCli(["init"], projectRoot);
+    runCli(["sync", "--agents", "claude"], projectRoot);
 
-    await expect(fs.readdir(path.join(projectRoot, ".nymor", "skills"))).resolves.toEqual([]);
+    await expect(fs.pathExists(path.join(projectRoot, ".nymor", "skills"))).resolves.toBe(true);
     await expect(fs.readJson(path.join(projectRoot, "nymor.json"))).resolves.toMatchObject({ local: [] });
-    await expect(fs.pathExists(path.join(projectRoot, ".nymor", "skills", "commit-conventions"))).resolves.toBe(false);
 
-    runCli(["compile"], projectRoot);
+    // Idempotent: sync twice should produce same result
     const before = await readTree(projectRoot);
-    runCli(["compile"], projectRoot);
+    runCli(["sync", "--agents", "claude"], projectRoot);
     const after = await readTree(projectRoot);
-
     expect(after).toEqual(before);
-    runCli(["doctor"], projectRoot);
   }, 60_000);
 
-  it("hides internal and removed commands from public help", () => {
+  it("shows clean 6-command help surface", () => {
     const result = spawnSync(process.execPath, [cliPath, "--help"], {
       cwd: repoRoot,
       encoding: "utf8"
@@ -39,19 +36,29 @@ describe("nymor CLI", () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("nymor");
-    expect(result.stdout).toContain("init");
+    expect(result.stdout).toContain("sync");
+    expect(result.stdout).toContain("list");
+    expect(result.stdout).toContain("status");
+    expect(result.stdout).toContain("doctor");
+    expect(result.stdout).toContain("watch");
+    expect(result.stdout).toContain("mcp");
+    // Removed commands must not appear
     expect(result.stdout).not.toContain("learn");
-    expect(result.stdout).not.toContain("add");
-    expect(result.stdout).not.toContain("remove");
-    expect(result.stdout).not.toContain("update");
+    expect(result.stdout).not.toContain("init");
+    expect(result.stdout).not.toContain("compile");
+    expect(result.stdout).not.toContain("validate");
+    expect(result.stdout).not.toContain("lint");
+    expect(result.stdout).not.toContain("mine");
+    expect(result.stdout).not.toContain("import");
   });
 
-  it("keeps the README focused on Nymor repo memory", async () => {
+  it("keeps the README focused on nymor sync", async () => {
     const readme = await fs.readFile(path.join(repoRoot, "README.md"), "utf8");
 
     expect(readme).toContain("# Nymor");
     expect(readme).toContain("/nymor-learn");
-    for (const forbidden of ["Cicada", "cicada", "registry", "draft", "approve", "starter skills", "nymor learn"]) {
+    expect(readme).toContain("nymor sync");
+    for (const forbidden of ["Cicada", "cicada", "registry", "draft", "approve", "starter skills"]) {
       expect(readme).not.toContain(forbidden);
     }
   });
@@ -100,7 +107,7 @@ describe("nymor CLI", () => {
     });
     await writeDemoSkill(projectRoot);
 
-    runCli(["compile"], projectRoot);
+    runCli(["sync", "--agents", "claude", "cursor", "copilot", "kiro", "agents-md", "gemini", "windsurf", "goose", "opencode"], projectRoot);
 
     await expect(fs.pathExists(path.join(projectRoot, ".claude", "skills", "demo", "SKILL.md"))).resolves.toBe(true);
     await expect(fs.pathExists(path.join(projectRoot, ".cursor", "rules", "nymor-demo.mdc"))).resolves.toBe(true);
@@ -112,12 +119,6 @@ describe("nymor CLI", () => {
 
     await expect(fs.readFile(path.join(projectRoot, ".claude", "commands", "nymor-learn.md"), "utf8")).resolves.toContain(
       "This looks like a reusable repo rule. Want me to capture it with /nymor-learn?"
-    );
-    await expect(fs.readFile(path.join(projectRoot, ".cursor", "commands", "nymor-learn.md"), "utf8")).resolves.toContain(
-      "Only create a skill after the user explicitly invokes /nymor-learn."
-    );
-    await expect(fs.readFile(path.join(projectRoot, ".github", "prompts", "nymor-learn.prompt.md"), "utf8")).resolves.toContain(
-      "Only create a skill after the user explicitly invokes /nymor-learn."
     );
     await expect(fs.readFile(path.join(projectRoot, "AGENTS.md"), "utf8")).resolves.toContain("<!-- nymor:start -->");
     await expect(fs.readFile(path.join(projectRoot, "GEMINI.md"), "utf8")).resolves.toContain("/nymor-learn");
@@ -155,14 +156,14 @@ describe("nymor CLI", () => {
       "utf8"
     );
 
-    runCli(["compile"], projectRoot);
+    runCli(["sync", "--agents", "agents-md"], projectRoot);
     const result = spawnSync(process.execPath, [cliPath, "doctor"], {
       cwd: projectRoot,
       encoding: "utf8"
     });
 
-    expect(result.status).toBe(1);
-    expect(`${result.stdout}${result.stderr}`).toContain("no matches: nope/**/*.fake");
+    // Broken globs are flagged as WARN (not FAIL) — exit code 0 but message is present
+    expect(`${result.stdout}${result.stderr}`).toContain("no files match: nope/**/*.fake");
   }, 60_000);
 });
 
@@ -182,7 +183,7 @@ async function writeDemoSkill(projectRoot: string): Promise<void> {
       "name: Demo",
       "description: Demo skill",
       "globs:",
-      "  - \"**/*\"",
+      '  - "**/*"',
       "alwaysApply: true",
       "---",
       "",

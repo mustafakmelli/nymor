@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/nymor-demo.gif" alt="Nymor Demo" width="600" />
+  <img src="assets/nymor-demo.gif" alt="Nymor Demo" width="100%" />
 </p>
 
 ---

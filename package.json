@@ -2,7 +2,20 @@
   "name": "nymor",
   "version": "2.1.0",
   "description": "Sync your AI agent rules everywhere — one command, all agents",
-  "keywords": ["ai", "agent", "rules", "claude", "cursor", "copilot", "kiro", "gemini", "windsurf", "skills", "cli", "sync"],
+  "keywords": [
+    "ai",
+    "agent",
+    "rules",
+    "claude",
+    "cursor",
+    "copilot",
+    "kiro",
+    "gemini",
+    "windsurf",
+    "skills",
+    "cli",
+    "sync"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,7 +26,7 @@
   },
   "homepage": "https://github.com/mustafakmelli/nymor#readme",
   "bin": {
-    "nymor": "./dist/index.js"
+    "nymor": "dist/index.js"
   },
   "files": [
     "dist",

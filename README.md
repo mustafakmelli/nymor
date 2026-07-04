@@ -20,6 +20,10 @@
   <img src="https://img.shields.io/badge/agents-16_supported-orange" alt="agents" />
 </p>
 
+<p align="center">
+  <img src="assets/nymor-demo.gif" alt="Nymor Demo" width="600" />
+</p>
+
 ---
 
 ## The problem

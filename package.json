@@ -1,6 +1,6 @@
 {
   "name": "nymor",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Sync your AI agent rules everywhere — one command, all agents",
   "keywords": [
     "ai",
@@ -39,6 +39,7 @@
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc",
+    "postbuild": "chmod +x dist/index.js",
     "check": "npm run build && npm test",
     "dev": "ts-node src/index.ts",
     "prepack": "npm run build",

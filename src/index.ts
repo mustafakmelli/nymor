@@ -6,6 +6,7 @@ import { statusCommand } from "./commands/status";
 import { doctorCommand } from "./commands/doctor";
 import { watchCommand } from "./commands/watch";
 import { learnCommand } from "./commands/learn";
+import { cleanCommand } from "./commands/clean";
 import { mcpCommand } from "./commands/mcp";
 
 const packageJson = require("../package.json") as { version: string };
@@ -44,6 +45,12 @@ program
   .command("watch")
   .description("Watch skills and auto-sync on changes")
   .action(() => watchCommand());
+
+program
+  .command("clean")
+  .description("Remove stale outputs left behind by deleted or renamed skills")
+  .option("--dry-run", "Show what would be removed without deleting any files")
+  .action((options) => cleanCommand(options));
 
 program
   .command("mcp")

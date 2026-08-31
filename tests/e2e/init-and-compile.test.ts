@@ -41,6 +41,7 @@ describe("nymor CLI", () => {
     expect(result.stdout).toContain("status");
     expect(result.stdout).toContain("doctor");
     expect(result.stdout).toContain("watch");
+    expect(result.stdout).toContain("clean");
     expect(result.stdout).toContain("mcp");
     // Removed commands must not appear
     expect(result.stdout).not.toContain("learn");
